@@ -1,0 +1,22 @@
+{
+  "name": "okami-samm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Okami SAMM — OWASP SAMM maturity assessment app with SQLite persistence and Okami-branded PDF reports",
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "postinstall": "node -e \"try{require('playwright').chromium}catch(e){}\"",
+    "browser": "playwright install chromium"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2",
+    "playwright": "^1.49.1"
+  }
+}

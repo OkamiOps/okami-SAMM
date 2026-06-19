@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<script src="okami-maturity-data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="./app-bridge.js"></script>
+<style>
+  html,body{margin:0;padding:0;background:#060609;}
+  *{box-sizing:border-box;}
+  ::selection{background:oklch(72% 0.19 45 / .3);}
+  @keyframes okpulse{0%,100%{opacity:1}50%{opacity:.35}}
+  details>summary{list-style:none;cursor:pointer;}
+  details>summary::-webkit-details-marker{display:none;}
+  input,textarea,button{font-family:inherit;}
+  textarea{resize:vertical;}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#1f1f2e;border:2px solid #060609}
+  @media print{
+    @page{ margin:12mm; }
+    html,body{ background:#fff !important; }
+    [data-print="hide"]{ display:none !important; }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  }
+</style>
+</helmet>
+<div style="--ok-bg-0:#060609;--ok-bg-1:#0b0b12;--ok-bg-2:#11111b;--ok-bg-3:#1a1a26;--ok-line:#1f1f2e;--ok-line-soft:#15151f;--ok-grid:rgba(255,255,255,0.028);--ok-fg:#f4f4f8;--ok-fg-soft:#b9bac8;--ok-fg-mute:#6c6d80;--ok-fg-dim:#3d3e50;--ok-orange:oklch(72% 0.19 45);--ok-magenta:oklch(70% 0.27 340);--ok-cyan:oklch(82% 0.14 200);--ok-success:oklch(78% 0.16 150);--ok-warning:oklch(82% 0.16 85);--ok-danger:oklch(65% 0.22 25);--ok-accent:var(--ok-orange);--ok-glow:0.55;--ok-mono:'JetBrains Mono',ui-monospace,monospace;--ok-display:'Space Grotesk',system-ui,sans-serif;min-height:100vh;color:var(--ok-fg);font-family:var(--ok-display);background-color:var(--ok-bg-0);background-image:radial-gradient(820px 460px at 8% -8%, color-mix(in oklch, var(--ok-orange) 9%, transparent), transparent 60%),radial-gradient(820px 460px at 102% -2%, color-mix(in oklch, var(--ok-cyan) 7%, transparent), transparent 58%),linear-gradient(90deg,var(--ok-grid) 1px,transparent 1px),linear-gradient(var(--ok-grid) 1px,transparent 1px);background-size:auto,auto,64px 64px,64px 64px;">
+<div style="{{ themeStyle }}">
+
+  <!-- ============ TOP BAR ============ -->
+  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px clamp(16px,4vw,40px);background:color-mix(in oklch,var(--ok-bg-0) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--ok-line);">
+    <img src="assets/okami-logo-outline.png" alt="OKAMI" style="height:30px;width:auto;display:block;" />
+    <div style="display:flex;flex-direction:column;gap:2px;line-height:1;">
+      <div style="font-family:var(--ok-display);font-weight:600;font-size:17px;letter-spacing:-.02em;">OKAMI <span style="color:var(--ok-accent);">Maturity</span></div>
+      <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ tagline }}</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div data-print="hide" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div style="display:inline-flex;border:1px solid var(--ok-line);">
+        <button onClick="{{ setPT }}" style="{{ langPtStyle }}">PT</button>
+        <button onClick="{{ setEN }}" style="{{ langEnStyle }}">EN</button>
+      </div>
+      <button onClick="{{ exportJSON }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">↓ {{ L.exportBtn }}</button>
+      <label style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">↑ {{ L.importBtn }}<input type="file" accept="application/json" onChange="{{ importJSON }}" style="display:none;" /></label>
+      <button onClick="{{ printPage }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">↓ PDF</button>
+    </div>
+  </div>
+
+  <!-- ============ STEPPER NAV ============ -->
+  <div data-print="hide" style="display:flex;gap:0;flex-wrap:wrap;padding:0 clamp(16px,4vw,40px);border-bottom:1px solid var(--ok-line);background:color-mix(in oklch,var(--ok-bg-1) 50%,transparent);">
+    <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
+      <button onClick="{{ st.onClick }}" style="{{ st.style }}">
+        <span style="font-family:var(--ok-mono);font-size:11px;opacity:.7;">{{ st.num }}</span>
+        <span>{{ st.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <!-- ============ MAIN ============ -->
+  <div style="max-width:1200px;margin:0 auto;padding:clamp(20px,3.5vw,44px) clamp(16px,4vw,40px) 120px;">
+
+  <!-- ========== SETUP ========== -->
+  <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(20px,3vw,40px);align-items:start;">
+      <div>
+        <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-accent);margin-bottom:18px;">{{ L.heroKicker }}</div>
+        <h1 style="font-family:var(--ok-display);font-weight:500;font-size:clamp(34px,4.6vw,56px);line-height:1.02;letter-spacing:-.035em;margin:0 0 18px;text-wrap:balance;">{{ L.heroTitle }}</h1>
+        <p style="font-family:var(--ok-display);font-size:17px;line-height:1.6;color:var(--ok-fg-soft);max-width:46ch;margin:0 0 28px;">{{ L.heroLead }}</p>
+
+        <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(18px,2.4vw,26px);">
+          <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:18px;">// {{ L.fOrg }}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
+            <label style="display:flex;flex-direction:column;gap:7px;">
+              <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ L.fOrg }}</span>
+              <input value="{{ meta.org }}" onInput="{{ onOrg }}" style="height:42px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line);color:var(--ok-fg);font-family:var(--ok-mono);font-size:13px;outline:none;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:7px;">
+              <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ L.fTeam }}</span>
+              <input value="{{ meta.team }}" onInput="{{ onTeam }}" style="height:42px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line);color:var(--ok-fg);font-family:var(--ok-mono);font-size:13px;outline:none;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:7px;">
+              <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ L.fDate }}</span>
+              <input value="{{ meta.date }}" onInput="{{ onDate }}" placeholder="2026-06-19" style="height:42px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line);color:var(--ok-fg);font-family:var(--ok-mono);font-size:13px;outline:none;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:7px;">
+              <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ L.fLead }}</span>
+              <input value="{{ meta.lead }}" onInput="{{ onLead }}" style="height:42px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line);color:var(--ok-fg);font-family:var(--ok-mono);font-size:13px;outline:none;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:7px;grid-column:1/-1;">
+              <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);">{{ L.fContrib }}</span>
+              <input value="{{ meta.contrib }}" onInput="{{ onContrib }}" style="height:42px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line);color:var(--ok-fg);font-family:var(--ok-mono);font-size:13px;outline:none;" />
+            </label>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:22px;">
+            <button onClick="{{ startBtn }}" style="display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 24px;background:var(--ok-accent);border:1px solid var(--ok-accent);color:#0a0a0f;font-family:var(--ok-display);font-weight:600;font-size:15px;cursor:pointer;box-shadow:0 0 calc(26px*var(--ok-glow)) color-mix(in oklch,var(--ok-accent) 60%,transparent);">{{ L.startBtn }} →</button>
+            <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);letter-spacing:.04em;">{{ L.resumeNote }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:14px;">{{ L.aboutKicker }}</div>
+        <h3 style="font-family:var(--ok-display);font-weight:500;font-size:22px;letter-spacing:-.01em;margin:0 0 6px;">{{ L.aboutTitle }}</h3>
+        <p style="font-family:var(--ok-display);font-size:14px;line-height:1.55;color:var(--ok-fg-mute);margin:0 0 20px;">{{ L.aboutLead }}</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ functionsSummary }}" as="fn" hint-placeholder-count="5">
+            <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:14px 16px;border-left:3px solid;border-left-color:{{ fn.color }};">
+              <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;">
+                <span style="font-family:var(--ok-mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:{{ fn.color }};">{{ fn.code }}</span>
+                <span style="font-family:var(--ok-display);font-weight:500;font-size:15px;">{{ fn.label }}</span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <sc-for list="{{ fn.practices }}" as="pr" hint-placeholder-count="3">
+                  <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-mute);border:1px solid var(--ok-line-soft);padding:3px 8px;">{{ pr.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ========== ASSESSMENT ========== -->
+  <sc-if value="{{ isAssess }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;gap:clamp(16px,2.4vw,30px);flex-wrap:wrap;align-items:flex-start;">
+      <!-- rail -->
+      <div style="flex:1 1 240px;max-width:300px;min-width:230px;position:sticky;top:118px;display:flex;flex-direction:column;gap:18px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ overallAnswered }}/{{ overallTotal }} {{ L.answeredWord }}</span>
+            <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-cyan);">{{ overallPct }}%</span>
+          </div>
+          <div style="height:5px;background:var(--ok-bg-2);overflow:hidden;"><div style="height:100%;background:var(--ok-cyan);width:{{ overallPctW }};transition:width .3s var(--ok-ease,ease);"></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <sc-for list="{{ fnNav }}" as="fn" hint-placeholder-count="5">
+            <button onClick="{{ fn.onClick }}" style="{{ fn.style }}">
+              <span style="display:flex;align-items:center;gap:9px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ fn.color }};flex:none;"></span><span style="font-family:var(--ok-display);font-weight:500;font-size:14px;">{{ fn.label }}</span></span>
+              <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-mute);">{{ fn.ans }}/{{ fn.total }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;border-top:1px dashed var(--ok-line);padding-top:14px;">
+          <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-dim);margin-bottom:4px;">{{ activeFnLabel }}</div>
+          <sc-for list="{{ practiceNav }}" as="pr" hint-placeholder-count="3">
+            <button onClick="{{ pr.onClick }}" style="{{ pr.style }}">
+              <span style="font-family:var(--ok-display);font-size:13px;">{{ pr.label }}</span>
+              <span style="font-family:var(--ok-mono);font-size:11px;color:{{ pr.color }};">{{ pr.score }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- questions -->
+      <div style="flex:3 1 460px;min-width:300px;display:flex;flex-direction:column;gap:18px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--ok-line);padding-bottom:16px;">
+          <div>
+            <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:{{ apColor }};margin-bottom:8px;">// {{ apCode }} · {{ activeFnLabel }}</div>
+            <h2 style="font-family:var(--ok-display);font-weight:500;font-size:clamp(24px,3vw,32px);letter-spacing:-.02em;margin:0;">{{ apLabel }}</h2>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+              <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);"><span style="color:var(--ok-cyan);">A</span> {{ apActA }}</span>
+              <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);"><span style="color:var(--ok-magenta);">B</span> {{ apActB }}</span>
+            </div>
+          </div>
+          <div style="text-align:right;flex:none;">
+            <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:4px;">{{ L.practiceScoreLabel }}</div>
+            <div style="font-family:var(--ok-display);font-weight:600;font-size:34px;line-height:1;color:{{ apColor }};">{{ apScore }}<span style="font-size:15px;color:var(--ok-fg-dim);">/3</span></div>
+          </div>
+        </div>
+
+        <sc-for list="{{ levels }}" as="lvl" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-family:var(--ok-mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-soft);">{{ lvl.label }}</span>
+              <span style="flex:1;height:1px;background:linear-gradient(90deg,var(--ok-line),transparent);"></span>
+            </div>
+            <sc-for list="{{ lvl.questions }}" as="q" hint-placeholder-count="2">
+              <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(14px,2vw,20px);">
+                <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;">
+                  <span style="font-family:var(--ok-mono);font-size:10px;font-weight:600;color:{{ q.streamColor }};border:1px solid var(--ok-line);padding:3px 7px;flex:none;margin-top:2px;">{{ q.stream }}</span>
+                  <div style="flex:1;">
+                    <div style="font-family:var(--ok-display);font-size:16px;line-height:1.45;color:var(--ok-fg);">{{ q.text }}</div>
+                    <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-dim);margin-top:5px;">{{ q.activityLabel }} · {{ q.id }}</div>
+                  </div>
+                  <button onClick="{{ q.onInfo }}" title="?" style="flex:none;width:28px;height:28px;border:1px solid var(--ok-line);background:transparent;color:var(--ok-cyan);font-family:var(--ok-display);font-style:italic;font-weight:700;font-size:15px;line-height:1;cursor:pointer;border-radius:50%;margin-top:1px;">i</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
+                  <sc-for list="{{ q.options }}" as="opt" hint-placeholder-count="4">
+                    <button onClick="{{ opt.onClick }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                  </sc-for>
+                </div>
+                <details style="margin-top:12px;">
+                  <summary style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);display:inline-flex;align-items:center;gap:6px;">▸ {{ L.criteria }}</summary>
+                  <ul style="margin:10px 0 0;padding:0 0 0 2px;list-style:none;display:flex;flex-direction:column;gap:6px;">
+                    <sc-for list="{{ q.guidance }}" as="g" hint-placeholder-count="3">
+                      <li style="font-family:var(--ok-display);font-size:13px;line-height:1.45;color:var(--ok-fg-soft);display:flex;gap:8px;"><span style="color:var(--ok-cyan);flex:none;">→</span><span>{{ g }}</span></li>
+                    </sc-for>
+                  </ul>
+                </details>
+                <input value="{{ q.note }}" onInput="{{ q.onNote }}" placeholder="{{ L.notesPh }}" style="margin-top:12px;width:100%;height:38px;padding:0 12px;background:var(--ok-bg-0);border:1px solid var(--ok-line-soft);color:var(--ok-fg-soft);font-family:var(--ok-mono);font-size:12px;outline:none;" />
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;">
+          <button onClick="{{ prevPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-display);font-weight:500;font-size:14px;cursor:pointer;">← {{ L.prevBtn }}</button>
+          <button onClick="{{ nextPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 22px;background:var(--ok-accent);border:1px solid var(--ok-accent);color:#0a0a0f;font-family:var(--ok-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 0 calc(20px*var(--ok-glow)) color-mix(in oklch,var(--ok-accent) 55%,transparent);">{{ nextLabel }} →</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ========== SCORECARD ========== -->
+  <sc-if value="{{ isScore }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:clamp(20px,3vw,36px);">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--ok-line);padding-bottom:20px;">
+        <div>
+          <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-accent);margin-bottom:10px;">{{ L.scKicker }}</div>
+          <div style="font-family:var(--ok-display);font-weight:500;font-size:14px;color:var(--ok-fg-mute);">{{ metaLine }}</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;">
+          <div>
+            <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:4px;">{{ L.overall }}</div>
+            <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-family:var(--ok-display);font-weight:600;font-size:clamp(44px,6vw,64px);line-height:.9;color:var(--ok-accent);">{{ overallScore }}</span><span style="font-family:var(--ok-display);font-size:20px;color:var(--ok-fg-dim);">/ 3.0</span></div>
+            <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.06em;color:var(--ok-fg-soft);margin-top:4px;">{{ overallBand }}</div>
+          </div>
+          <button onClick="{{ saveSnapshot }}" style="height:40px;padding:0 16px;background:transparent;border:1px solid var(--ok-cyan);color:var(--ok-cyan);font-family:var(--ok-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">+ {{ L.saveSnap }}{{ snapCountLabel }}</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--ok-line);border:1px solid var(--ok-line);">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+          <div style="background:var(--ok-bg-1);padding:16px 18px;">
+            <div style="font-family:var(--ok-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:8px;">{{ k.label }}</div>
+            <div style="display:flex;align-items:baseline;gap:3px;"><span style="font-family:var(--ok-display);font-weight:600;font-size:30px;line-height:1;color:{{ k.color }};">{{ k.value }}</span><span style="font-family:var(--ok-mono);font-size:12px;color:var(--ok-fg-dim);">{{ k.suf }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <p style="font-family:var(--ok-display);font-size:14px;line-height:1.6;color:var(--ok-fg-mute);max-width:82ch;margin:0;">{{ L.scExplain }}</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:clamp(16px,2.4vw,28px);align-items:start;">
+        <!-- radar -->
+        <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,24px);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.radarTitle }}</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onClick="{{ toggleTarget }}" style="{{ targetToggleStyle }}">{{ L.targetWord }}</button>
+              <button onClick="{{ toggleCompare }}" style="{{ compareToggleStyle }}">{{ L.compareWord }}</button>
+            </div>
+          </div>
+          <svg viewBox="0 0 {{ radar.size }} {{ radar.size }}" style="width:100%;height:auto;display:block;overflow:visible;margin-top:6px;">
+            <sc-for list="{{ radar.rings }}" as="ring" hint-placeholder-count="3">
+              <circle cx="{{ radar.cx }}" cy="{{ radar.cy }}" r="{{ ring.r }}" fill="none" stroke="var(--ok-line)" strokeWidth="1"></circle>
+            </sc-for>
+            <sc-for list="{{ radar.axes }}" as="ax" hint-placeholder-count="15">
+              <line x1="{{ ax.x1 }}" y1="{{ ax.y1 }}" x2="{{ ax.x2 }}" y2="{{ ax.y2 }}" stroke="var(--ok-line-soft)" strokeWidth="1"></line>
+              <text x="{{ ax.lx }}" y="{{ ax.ly }}" fill="{{ ax.color }}" fontFamily="var(--ok-mono)" fontSize="9" textAnchor="{{ ax.anchor }}" dominantBaseline="middle">{{ ax.label }}</text>
+            </sc-for>
+            <sc-if value="{{ showCompareLive }}" hint-placeholder-val="{{ false }}">
+              <polygon points="{{ radar.comparePoints }}" fill="color-mix(in oklch,var(--ok-magenta) 10%,transparent)" stroke="var(--ok-magenta)" strokeWidth="1.5" strokeDasharray="2 3"></polygon>
+            </sc-if>
+            <sc-if value="{{ showTargetLive }}" hint-placeholder-val="{{ true }}">
+              <polygon points="{{ radar.targetPoints }}" fill="none" stroke="var(--ok-cyan)" strokeWidth="1.5" strokeDasharray="5 4"></polygon>
+            </sc-if>
+            <sc-for list="{{ radar.spokes }}" as="sp" hint-placeholder-count="15">
+              <line x1="{{ radar.cx }}" y1="{{ radar.cy }}" x2="{{ sp.x2 }}" y2="{{ sp.y2 }}" stroke="{{ sp.color }}" strokeWidth="2.5" strokeLinecap="round" opacity="0.92"></line>
+            </sc-for>
+            <polygon points="{{ radar.currentPoints }}" fill="color-mix(in oklch,var(--ok-fg) 4%,transparent)" stroke="color-mix(in oklch,var(--ok-fg) 24%,transparent)" strokeWidth="1"></polygon>
+            <sc-for list="{{ radar.dots }}" as="d" hint-placeholder-count="15">
+              <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.6" fill="{{ d.color }}" stroke="var(--ok-bg-1)" strokeWidth="1.2"></circle>
+            </sc-for>
+          </svg>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
+            <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-mute);display:inline-flex;align-items:center;gap:6px;"><span style="width:14px;height:2px;background:var(--ok-accent);"></span>{{ L.currentWord }}</span>
+            <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-mute);display:inline-flex;align-items:center;gap:6px;"><span style="width:14px;height:0;border-top:2px dashed var(--ok-cyan);"></span>{{ L.targetWord }}</span>
+          </div>
+          <div style="display:flex;gap:10px 14px;flex-wrap:wrap;justify-content:center;margin-top:12px;border-top:1px dashed var(--ok-line);padding-top:12px;">
+            <sc-for list="{{ radarLegend }}" as="lg" hint-placeholder-count="5">
+              <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-soft);display:inline-flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;background:{{ lg.color }};flex:none;"></span>{{ lg.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- bars -->
+        <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,24px);">
+          <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.barsTitle }}</span>
+          <div style="display:flex;flex-direction:column;gap:11px;margin-top:16px;">
+            <sc-for list="{{ bars }}" as="b" hint-placeholder-count="15">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">
+                  <span style="font-family:var(--ok-display);font-size:13px;color:var(--ok-fg-soft);">{{ b.label }}</span>
+                  <span style="font-family:var(--ok-mono);font-size:11px;color:{{ b.color }};">{{ b.score }}</span>
+                </div>
+                <div style="position:relative;height:8px;background:var(--ok-bg-2);">
+                  <div style="position:absolute;inset:0;width:{{ b.pctW }};background:{{ b.color }};"></div>
+                  <div style="position:absolute;top:-2px;bottom:-2px;width:2px;left:{{ b.targetLeft }};background:var(--ok-cyan);"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:var(--ok-mono);font-size:9px;color:var(--ok-fg-dim);margin-top:8px;"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+        </div>
+      </div>
+
+      <!-- per function -->
+      <div>
+        <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.byFunction }}</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px;">
+          <sc-for list="{{ functionsSummary }}" as="fn" hint-placeholder-count="5">
+            <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:16px;border-top:3px solid;border-top-color:{{ fn.color }};">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">
+                <span style="font-family:var(--ok-display);font-weight:500;font-size:15px;">{{ fn.label }}</span>
+                <span style="font-family:var(--ok-display);font-weight:600;font-size:22px;color:{{ fn.color }};">{{ fn.score }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <sc-for list="{{ fn.practices }}" as="pr" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-mute);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ pr.label }}</span>
+                    <div style="width:60px;height:5px;background:var(--ok-bg-2);flex:none;"><div style="height:100%;width:{{ pr.pctW }};background:{{ fn.color }};"></div></div>
+                    <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-soft);flex:none;width:26px;text-align:right;">{{ pr.score }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- snapshots -->
+      <div style="border-top:1px dashed var(--ok-line);padding-top:18px;">
+        <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.snapshotsTitle }}</span>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+          <sc-if value="{{ hasSnapshots }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ snapshots }}" as="s" hint-placeholder-count="2">
+              <button onClick="{{ s.onClick }}" style="{{ s.style }}">
+                <span style="font-family:var(--ok-display);font-size:13px;font-weight:500;">{{ s.name }}</span>
+                <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-mute);">{{ s.date }} · {{ s.score }}</span>
+              </button>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ noSnapshots }}" hint-placeholder-val="{{ true }}">
+            <span style="font-family:var(--ok-display);font-size:13px;color:var(--ok-fg-dim);">{{ L.noSnaps }}</span>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ========== ROADMAP ========== -->
+  <sc-if value="{{ isRoad }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="border-bottom:1px solid var(--ok-line);padding-bottom:18px;">
+        <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-accent);margin-bottom:10px;">// roadmap</div>
+        <h2 style="font-family:var(--ok-display);font-weight:500;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.025em;margin:0 0 10px;">{{ L.rdTitle }}</h2>
+        <p style="font-family:var(--ok-display);font-size:15px;color:var(--ok-fg-soft);max-width:60ch;margin:0;">{{ L.rdLead }}</p>
+      </div>
+      <sc-for list="{{ roadmap }}" as="r" hint-placeholder-count="6">
+        <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,22px);">
+          <div style="display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-start;">
+            <div style="flex:1 1 240px;">
+              <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:6px;"><span style="color:{{ r.color }};">{{ r.code }}</span> · {{ r.fnLabel }}</div>
+              <div style="font-family:var(--ok-display);font-weight:500;font-size:19px;">{{ r.label }}</div>
+            </div>
+            <div style="flex:none;text-align:right;">
+              <div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-dim);margin-bottom:4px;">{{ L.currentLevelLabel }}</div>
+              <div style="font-family:var(--ok-display);font-weight:600;font-size:22px;line-height:1;color:{{ r.currentColor }};">{{ r.achievedLabel }}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;display:flex;gap:8px;">
+            <sc-for list="{{ r.rail }}" as="lv" hint-placeholder-count="3">
+              <button onClick="{{ lv.onClick }}" style="flex:1;text-align:left;cursor:pointer;border:none;background:{{ lv.segBg }};opacity:{{ lv.opacity }};padding:9px 10px 8px;">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+                  <span style="width:17px;height:17px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-family:var(--ok-mono);font-size:9px;font-weight:700;background:{{ lv.badgeBg }};color:{{ lv.badgeFg }};">{{ lv.mark }}</span>
+                  <span style="font-family:var(--ok-mono);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:{{ lv.labelColor }};">{{ L.level }} {{ lv.level }}</span>
+                </div>
+                <div style="height:6px;background:{{ lv.barBg }};margin-bottom:7px;"><div style="height:100%;width:{{ lv.fillW }};background:{{ lv.fillColor }};"></div></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:15px;">
+                  <span style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.03em;color:{{ lv.statusColor }};">{{ lv.statusLabel }}</span>
+                  <sc-if value="{{ lv.isHere }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--ok-mono);font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ok-success);white-space:nowrap;">● aqui</span></sc-if>
+                  <sc-if value="{{ lv.isMeta }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--ok-mono);font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ok-cyan);white-space:nowrap;">◇ meta</span></sc-if>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:16px;border-top:1px dashed var(--ok-line);padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+              <span style="font-family:var(--ok-display);font-weight:500;font-size:14px;color:{{ r.stateColor }};">{{ r.stateLabel }}</span>
+              <sc-if value="{{ r.notAchievedL1 }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--ok-mono);font-size:9.5px;letter-spacing:.03em;color:var(--ok-warning);">{{ L.notYetL1 }}</span></sc-if>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-dim);">{{ L.setTargetLabel }}</span>
+              <div style="display:inline-flex;border:1px solid var(--ok-line);">
+                <sc-for list="{{ r.targetOptions }}" as="t" hint-placeholder-count="3">
+                  <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.v }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <sc-if value="{{ r.hasFocus }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:12px;border:1px solid var(--ok-line);border-left:3px solid {{ r.focus.tagColor }};background:var(--ok-bg-0);padding:clamp(14px,2vw,18px);">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;"><span style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#06060b;background:{{ r.focus.tagColor }};padding:3px 8px;white-space:nowrap;">{{ r.focus.tag }}</span><span style="font-family:var(--ok-display);font-weight:600;font-size:16px;white-space:nowrap;">{{ L.level }} {{ r.focus.level }}</span></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;">
+                <sc-for list="{{ r.focus.streams }}" as="s" hint-placeholder-count="2">
+                  <div style="border:1px solid {{ s.cardBorder }};background:{{ s.cardBg }};padding:13px 14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;">
+                      <span style="display:inline-flex;align-items:baseline;gap:7px;"><span style="font-family:var(--ok-mono);font-size:10px;font-weight:600;color:{{ s.streamColor }};">{{ s.stream }}</span><span style="font-family:var(--ok-display);font-weight:600;font-size:13.5px;color:var(--ok-fg);">{{ s.activity }}</span></span>
+                      <sc-if value="{{ s.quick }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--ok-mono);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:{{ s.quickColor }};border:1px solid {{ s.quickColor }};padding:2px 6px;white-space:nowrap;">⚡ {{ L.quickWin }}</span></sc-if>
+                    </div>
+                    <div style="font-family:var(--ok-display);font-size:13px;color:var(--ok-fg-soft);line-height:1.45;margin-bottom:9px;">{{ s.question }}</div>
+                    <div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.06em;color:var(--ok-fg-dim);margin-bottom:9px;">{{ L.currentWord }}: {{ s.answerLabel }}</div>
+                    <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;">
+                      <sc-for list="{{ s.items }}" as="it" hint-placeholder-count="3">
+                        <li style="font-family:var(--ok-display);font-size:12.5px;line-height:1.45;color:var(--ok-fg-soft);display:flex;gap:8px;"><span style="color:var(--ok-fg-dim);flex:none;font-family:var(--ok-mono);">→</span><span>{{ it }}</span></li>
+                      </sc-for>
+                    </ul>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ r.hasCompleted }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-dim);">{{ L.completedLabel }}:</span>
+              <sc-for list="{{ r.completed }}" as="c" hint-placeholder-count="1">
+                <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-success);border:1px solid color-mix(in oklch,var(--ok-success) 40%,var(--ok-line));padding:3px 9px;">✓ {{ L.level }} {{ c.level }}</span>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="margin-top:14px;border-top:1px dashed var(--ok-line);padding-top:14px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button onClick="{{ r.onAI }}" style="display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;background:transparent;border:1px solid var(--ok-magenta);color:var(--ok-magenta);font-family:var(--ok-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">✦ {{ L.aiBtn }}</button>
+              <span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-dim);letter-spacing:.04em;">{{ L.aiHint }}</span>
+            </div>
+            <sc-if value="{{ r.aiLoading }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;font-family:var(--ok-mono);font-size:11px;color:var(--ok-magenta);display:inline-flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok-magenta);animation:okpulse 1s infinite;"></span>{{ L.aiLoading }}</div>
+            </sc-if>
+            <sc-if value="{{ r.aiHasText }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;border:1px solid var(--ok-line);border-left:3px solid var(--ok-magenta);background:color-mix(in oklch,var(--ok-magenta) 5%,var(--ok-bg-0));padding:14px 16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                  <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-magenta);">✦ {{ L.aiTitle }}</span>
+                  <button onClick="{{ r.onAI }}" style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-mute);font-family:var(--ok-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">↻ {{ L.aiRegen }}</button>
+                </div>
+                <div dangerouslySetInnerHTML="{{ r.aiHtmlObj }}"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ r.aiError }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;font-family:var(--ok-display);font-size:13px;color:var(--ok-danger);">⚠ {{ L.aiErr }}</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ========== HISTORY ========== -->
+  <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--ok-line);padding-bottom:18px;">
+        <div>
+          <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-accent);margin-bottom:10px;">{{ L.histKicker }}</div>
+          <h2 style="font-family:var(--ok-display);font-weight:500;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.025em;margin:0 0 10px;">{{ L.histTitle }}</h2>
+          <p style="font-family:var(--ok-display);font-size:15px;color:var(--ok-fg-soft);max-width:60ch;margin:0;">{{ L.histLead }}</p>
+        </div>
+        <button onClick="{{ saveSnapshot }}" style="flex:none;height:42px;padding:0 18px;background:transparent;border:1px solid var(--ok-cyan);color:var(--ok-cyan);font-family:var(--ok-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">+ {{ L.saveSnapNow }}{{ snapCountLabel }}</button>
+      </div>
+
+      <sc-if value="{{ histHasData }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:22px;">
+          <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,22px);">
+            <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.trendTitle }}</span>
+            <svg viewBox="0 0 {{ trend.w }} {{ trend.h }}" style="width:100%;height:auto;display:block;margin-top:14px;overflow:visible;">
+              <line x1="0" y1="{{ trend.h }}" x2="{{ trend.w }}" y2="{{ trend.h }}" stroke="var(--ok-line)" strokeWidth="1"></line>
+              <sc-if value="{{ hasTrend }}" hint-placeholder-val="{{ false }}">
+                <polyline points="{{ trend.line }}" fill="none" stroke="var(--ok-accent)" strokeWidth="2"></polyline>
+              </sc-if>
+              <sc-for list="{{ trend.dots }}" as="d" hint-placeholder-count="3">
+                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.5" fill="var(--ok-accent)" stroke="var(--ok-bg-1)" strokeWidth="1.5"></circle>
+              </sc-for>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-family:var(--ok-mono);font-size:9px;color:var(--ok-fg-dim);margin-top:6px;"><span>0</span><span>3.0</span></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ histReversed }}" as="h" hint-placeholder-count="3">
+              <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:16px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+                <div style="flex:1 1 200px;min-width:160px;">
+                  <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-dim);">#{{ h.idx }}</span><span style="font-family:var(--ok-display);font-weight:500;font-size:15px;">{{ h.name }}</span></div>
+                  <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-mute);margin-top:3px;">{{ h.date }}</div>
+                </div>
+                <div style="flex:1 1 180px;display:flex;gap:4px;align-items:flex-end;height:34px;">
+                  <sc-for list="{{ h.fns }}" as="fn" hint-placeholder-count="5">
+                    <div style="flex:1;background:var(--ok-bg-2);height:100%;display:flex;align-items:flex-end;"><div style="width:100%;height:{{ fn.pctW }};background:{{ fn.color }};"></div></div>
+                  </sc-for>
+                </div>
+                <div style="flex:none;text-align:right;min-width:96px;">
+                  <div style="display:flex;align-items:baseline;gap:6px;justify-content:flex-end;"><span style="font-family:var(--ok-display);font-weight:600;font-size:24px;color:var(--ok-accent);">{{ h.score }}</span><span style="font-family:var(--ok-mono);font-size:10px;color:var(--ok-fg-dim);">/3</span></div>
+                  <sc-if value="{{ h.hasDelta }}" hint-placeholder-val="{{ false }}"><div style="font-family:var(--ok-mono);font-size:10px;color:{{ h.deltaColor }};margin-top:2px;">{{ h.delta }} {{ L.vsPrev }}</div></sc-if>
+                </div>
+                <button onClick="{{ h.onDelete }}" style="flex:none;width:32px;height:32px;border:1px solid var(--ok-line);background:transparent;color:var(--ok-fg-mute);font-size:14px;cursor:pointer;" title="{{ L.deleteWord }}">×</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noSnapshots }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px dashed var(--ok-line);background:var(--ok-bg-1);padding:40px;text-align:center;font-family:var(--ok-display);font-size:14px;color:var(--ok-fg-mute);">{{ L.histEmpty }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ========== COMPARE ========== -->
+  <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div style="border-bottom:1px solid var(--ok-line);padding-bottom:18px;">
+        <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ok-accent);margin-bottom:10px;">{{ L.cmpKicker }}</div>
+        <h2 style="font-family:var(--ok-display);font-weight:500;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.025em;margin:0 0 10px;">{{ L.cmpTitle }}</h2>
+        <p style="font-family:var(--ok-display);font-size:15px;color:var(--ok-fg-soft);max-width:60ch;margin:0;">{{ L.cmpLead }}</p>
+      </div>
+
+      <sc-if value="{{ cmpReady }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:22px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+            <div>
+              <div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-cyan);margin-bottom:8px;">{{ L.cmpPickA }}</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <sc-for list="{{ cmpOptionsA }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.name }}</button></sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-cyan);margin-bottom:8px;">{{ L.cmpPickB }}</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <sc-for list="{{ cmpOptionsB }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.name }}</button></sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:center;gap:clamp(16px,4vw,48px);flex-wrap:wrap;border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(18px,2.4vw,28px);">
+            <div style="text-align:center;"><div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:5px;">{{ L.cmpPickA }}</div><div style="font-family:var(--ok-display);font-weight:600;font-size:clamp(34px,5vw,52px);line-height:1;color:var(--ok-fg-soft);">{{ compare.overallA }}</div></div>
+            <div style="font-family:var(--ok-mono);font-size:24px;color:var(--ok-fg-dim);">→</div>
+            <div style="text-align:center;"><div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:5px;">{{ L.cmpPickB }}</div><div style="font-family:var(--ok-display);font-weight:600;font-size:clamp(34px,5vw,52px);line-height:1;color:var(--ok-accent);">{{ compare.overallB }}</div></div>
+            <div style="text-align:center;border-left:1px solid var(--ok-line);padding-left:clamp(16px,3vw,32px);"><div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:5px;">{{ L.cmpOverallDelta }}</div><div style="font-family:var(--ok-display);font-weight:600;font-size:clamp(34px,5vw,52px);line-height:1;color:{{ compare.dColor }};">{{ compare.dOverall }}</div></div>
+          </div>
+
+          <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,22px);">
+            <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.cmpFnDelta }}</span>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:14px;">
+              <sc-for list="{{ compare.fnDelta }}" as="f" hint-placeholder-count="5">
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;"><span style="font-family:var(--ok-display);font-size:13px;color:var(--ok-fg-soft);">{{ f.label }}</span><span style="font-family:var(--ok-mono);font-size:11px;color:{{ f.deltaColor }};">{{ f.deltaTxt }}</span></div>
+                  <div style="position:relative;height:8px;background:var(--ok-bg-2);">
+                    <div style="position:absolute;inset:0;width:{{ f.aW }};background:var(--ok-fg-dim);"></div>
+                    <div style="position:absolute;top:0;bottom:0;width:{{ f.bW }};background:{{ f.color }};opacity:.85;"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(16px,2.2vw,22px);">
+            <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ L.cmpPracticeWord }} · {{ L.cmpDeltaWord }}</span>
+            <div style="display:flex;flex-direction:column;gap:2px;margin-top:14px;">
+              <sc-for list="{{ compare.rows }}" as="r" hint-placeholder-count="15">
+                <div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px dashed var(--ok-line-soft);">
+                  <span style="width:7px;height:7px;flex:none;background:{{ r.fnColor }};"></span>
+                  <span style="flex:1;min-width:0;font-family:var(--ok-display);font-size:13px;color:var(--ok-fg-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.label }}</span>
+                  <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);flex:none;">{{ r.a }}</span>
+                  <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-dim);flex:none;">→</span>
+                  <span style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg);flex:none;width:34px;">{{ r.b }}</span>
+                  <span style="font-family:var(--ok-mono);font-size:11px;flex:none;width:48px;text-align:right;color:{{ r.deltaColor }};">{{ r.delta }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noSnapshots }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px dashed var(--ok-line);background:var(--ok-bg-1);padding:40px;text-align:center;font-family:var(--ok-display);font-size:14px;color:var(--ok-fg-mute);">{{ L.cmpNeed }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  </div>
+
+  <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:70;display:inline-flex;align-items:center;gap:9px;padding:13px 20px;background:var(--ok-bg-2);border:1px solid var(--ok-success);box-shadow:0 0 calc(30px*var(--ok-glow)) color-mix(in oklch,var(--ok-success) 40%,transparent);">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--ok-success);flex:none;"></span>
+      <span style="font-family:var(--ok-mono);font-size:12px;letter-spacing:.04em;color:var(--ok-fg);">✓ {{ toast }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isInfo }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeInfo }}" style="position:fixed;inset:0;z-index:60;background:rgba(4,4,8,.74);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div onClick="{{ stop }}" style="max-width:560px;width:100%;max-height:84vh;overflow:auto;background:var(--ok-bg-1);border:1px solid var(--ok-line);box-shadow:0 0 calc(44px*var(--ok-glow)) color-mix(in oklch,var(--ok-cyan) 28%,transparent);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid var(--ok-line);position:sticky;top:0;background:var(--ok-bg-1);">
+          <div>
+            <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-cyan);margin-bottom:7px;">{{ info.code }} · {{ info.practiceLabel }} · {{ L.level }} {{ info.level }}</div>
+            <div style="font-family:var(--ok-display);font-weight:500;font-size:18px;line-height:1.35;color:var(--ok-fg);">{{ info.text }}</div>
+          </div>
+          <button onClick="{{ closeInfo }}" style="flex:none;width:30px;height:30px;border:1px solid var(--ok-line);background:transparent;color:var(--ok-fg-soft);font-size:17px;line-height:1;cursor:pointer;">×</button>
+        </div>
+        <div style="padding:18px 20px;">
+          <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);margin-bottom:14px;">// {{ L.infoYes }}</div>
+          <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px;">
+            <sc-for list="{{ info.guidance }}" as="g" hint-placeholder-count="3">
+              <li style="display:flex;gap:11px;font-family:var(--ok-display);font-size:14px;line-height:1.5;color:var(--ok-fg-soft);"><span style="color:var(--ok-cyan);flex:none;font-family:var(--ok-mono);">→</span><span>{{ g }}</span></li>
+            </sc-for>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;defaultLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;pt&quot;,&quot;en&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;orange&quot;,&quot;cyan&quot;,&quot;magenta&quot;],&quot;default&quot;:&quot;orange&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;glow&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.55,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.W = [0,0.25,0.5,1];
+    this.fnColors = {G:'var(--ok-orange)',D:'var(--ok-cyan)',I:'var(--ok-magenta)',V:'var(--ok-warning)',O:'var(--ok-success)'};
+    this.ansColors = ['var(--ok-danger)','var(--ok-warning)','var(--ok-cyan)','var(--ok-success)'];
+    this.KEY = 'okami_maturity_state_v1';
+    this.STR = {
+      pt:{ tagline:'Avaliação de Maturidade · OWASP SAMM v2',
+        stSetup:'Início', stAssess:'Avaliação', stScore:'Scorecard', stRoad:'Roadmap', stHistory:'Histórico', stCompare:'Comparativo',
+        heroKicker:'// owasp samm v2 · autoavaliação', heroTitle:'Avaliação de Maturidade em Segurança',
+        heroLead:'Meça a maturidade do seu ciclo de desenvolvimento seguro nas 15 práticas do OWASP SAMM. Responda, visualize o scorecard e planeje o roadmap.',
+        fOrg:'Organização', fTeam:'Equipe / Aplicação', fDate:'Data', fLead:'Líder', fContrib:'Participantes',
+        startBtn:'Iniciar avaliação', importBtn:'Importar', resumeNote:'Progresso salvo automaticamente neste navegador.',
+        aboutKicker:'// o modelo', aboutTitle:'5 funções · 15 práticas · 90 perguntas',
+        aboutLead:'O SAMM organiza a segurança em cinco funções de negócio, cada uma com três práticas avaliadas em níveis de maturidade de 0 a 3.',
+        level:'Nível', criteria:'Critérios de avaliação', notesPh:'Notas da entrevista — como e por quê…',
+        prevBtn:'Anterior', nextBtn:'Próxima prática', practiceScoreLabel:'Score', answeredWord:'respondidas',
+        complete:'Ver scorecard', scKicker:'// resultado', overall:'Maturidade geral',
+        byFunction:'Por função de negócio', radarTitle:'Radar de maturidade', barsTitle:'Maturidade por prática',
+        targetWord:'Meta', currentWord:'Atual', compareWord:'Comparar', saveSnap:'Salvar snapshot',
+        snapshotsTitle:'Comparar com snapshot', noSnaps:'Nenhum snapshot salvo ainda. Salve o estado atual para comparar mais tarde.',
+        exportBtn:'Exportar', importBtnTop:'Importar',
+        rdTitle:'Roadmap de maturidade', rdLead:'Cada prática evolui em três níveis. Veja onde o cliente está hoje, o que falta para cada nível e gere sugestões personalizadas com IA.',
+        stDone:'Concluído', stPartial:'Parcial', stNone:'Não iniciado', focusNow:'Foco agora', achievedWord:'atingido',
+        targetReachedMsg:'Meta atingida — mantenha a melhoria contínua.', noTargetMsg:'Defina uma meta acima para priorizar as ações.', focusBannerMsg:'Foco para a meta', aboveTarget:'Acima da meta',
+        currentLevelLabel:'Nível atual', nextStepMsg:'Próximo nível a conquistar:', maxMsg:'Nível máximo atingido — mantenha a melhoria contínua.', quickWin:'Maior impacto', completedLabel:'Já conquistado', initialWord:'Inicial', nextWord:'Próximo', clickHint:'Clique nos níveis acima para ver os detalhes de cada um.', viewingDone:'Concluído', viewingPartial:'Parcial', viewingNone:'Não iniciado', notYetL1:'Ainda não atingiu o Nível 1', initialFull:'Nível 0 · Inicial', consolidateMsg:'cumprido fora de ordem — conclua os níveis anteriores para consolidar a maturidade',
+        aiBtn:'Sugestões da IA', aiLoading:'Gerando sugestões…', aiTitle:'Plano sugerido pela IA', aiErr:'Não foi possível gerar agora. Tente novamente.', aiRegen:'Refazer', aiHint:'Baseado nas respostas e no nível atual desta prática.',
+        currentLvl:'Atual', gapWord:'Lacuna', recsTitle:'Ações recomendadas', recsEmpty:'Prática no nível máximo — mantenha a melhoria contínua.', setTargetLabel:'Meta', infoYes:'Uma resposta plena significa que:', close:'Fechar', scExplain:'Cada prática recebe um score de 0 a 3 — a média dos seus dois streams. Quanto maior, mais madura e consistente é a prática. O radar mostra as 15 práticas (cor = função); as barras comparam cada prática com a meta, marcada pela linha ciano.',
+        bands:['Inicial / Ad-hoc','Em desenvolvimento','Maduro','Otimizado'],
+        kpiOverall:'Maturidade geral', kpiOnTarget:'Práticas na meta', kpiAvgGap:'Lacuna média', kpiLevel3:'Práticas Nível 3', kpiCoverage:'Cobertura',
+        histKicker:'// histórico', histTitle:'Histórico de avaliações', histLead:'Cada snapshot guarda o estado completo da avaliação. Acompanhe a evolução da maturidade ao longo do tempo.', histEmpty:'Nenhum snapshot salvo ainda. No Scorecard, clique em “Salvar snapshot” para registrar o estado atual.', saveSnapNow:'Salvar snapshot atual', trendTitle:'Evolução da maturidade geral', snapsCount:'snapshots', vsPrev:'vs. anterior', loadWord:'Carregar', deleteWord:'Excluir', confirmDel:'Excluir este snapshot?', currentWord2:'Avaliação atual (não salva)',
+        snapSavedMsg:'Snapshot salvo no histórico', savedWord:'Salvo',
+        pdfReport:'Relatório de maturidade', pdfSummary:'Resumo executivo', pdfNextSteps:'Próximos passos prioritários', pdfNsLead:'Práticas com maior lacuna até a meta — comece por aqui.', pdfNoGaps:'Todas as práticas atingiram a meta definida. Mantenha a melhoria contínua e reavalie periodicamente.', pdfDetail:'Detalhamento por prática', pdfFocusOn:'Foco', pdfHowto:'Maturidade 0–3 por prática (média dos 2 streams). Meta sugerida = próximo nível a conquistar. Lacuna = distância até a meta.', pdfAssessed:'Avaliado por', pdfScopeWord:'Escopo',
+        cmpKicker:'// comparativo', cmpTitle:'Comparar avaliações', cmpLead:'Selecione duas avaliações para ver a evolução prática a prática.', cmpPickA:'Base (antes)', cmpPickB:'Comparada (depois)', cmpCurrent:'Avaliação atual', cmpDeltaWord:'Variação', cmpPracticeWord:'Prática', cmpNeed:'Salve ao menos um snapshot para comparar.', cmpSame:'sem mudança', cmpFnDelta:'Variação por função', cmpOverallDelta:'Variação geral' },
+      en:{ tagline:'Maturity Assessment · OWASP SAMM v2',
+        stSetup:'Start', stAssess:'Assessment', stScore:'Scorecard', stRoad:'Roadmap', stHistory:'History', stCompare:'Compare',
+        heroKicker:'// owasp samm v2 · self-assessment', heroTitle:'Software Security Maturity Assessment',
+        heroLead:'Measure the maturity of your secure development lifecycle across the 15 OWASP SAMM practices. Answer, visualize the scorecard and plan the roadmap.',
+        fOrg:'Organization', fTeam:'Team / Application', fDate:'Date', fLead:'Team lead', fContrib:'Contributors',
+        startBtn:'Start assessment', importBtn:'Import', resumeNote:'Progress is saved automatically in this browser.',
+        aboutKicker:'// the model', aboutTitle:'5 functions · 15 practices · 90 questions',
+        aboutLead:'SAMM organizes security into five business functions, each with three practices scored across maturity levels 0 to 3.',
+        level:'Level', criteria:'Assessment criteria', notesPh:'Interview notes — how and why…',
+        prevBtn:'Previous', nextBtn:'Next practice', practiceScoreLabel:'Score', answeredWord:'answered',
+        complete:'View scorecard', scKicker:'// results', overall:'Overall maturity',
+        byFunction:'By business function', radarTitle:'Maturity radar', barsTitle:'Maturity by practice',
+        targetWord:'Target', currentWord:'Current', compareWord:'Compare', saveSnap:'Save snapshot',
+        snapshotsTitle:'Compare with snapshot', noSnaps:'No snapshot saved yet. Save the current state to compare later.',
+        exportBtn:'Export', importBtnTop:'Import',
+        rdTitle:'Maturity roadmap', rdLead:'Each practice evolves across three levels. See where the client is today, what each level requires, and generate tailored suggestions with AI.',
+        stDone:'Done', stPartial:'Partial', stNone:'Not started', focusNow:'Focus now', achievedWord:'achieved',
+        targetReachedMsg:'Target reached — keep improving continuously.', noTargetMsg:'Set a target above to prioritize actions.', focusBannerMsg:'Focus for target', aboveTarget:'Above target',
+        currentLevelLabel:'Current level', nextStepMsg:'Next level to reach:', maxMsg:'Top level reached — keep improving continuously.', quickWin:'Highest impact', completedLabel:'Achieved', initialWord:'Initial', nextWord:'Next', clickHint:'Click a level above to view its details.', viewingDone:'Done', viewingPartial:'Partial', viewingNone:'Not started', notYetL1:'Not yet at Level 1', initialFull:'Level 0 · Initial', consolidateMsg:'achieved out of order — complete earlier levels to consolidate maturity',
+        aiBtn:'AI suggestions', aiLoading:'Generating suggestions…', aiTitle:'AI-suggested plan', aiErr:'Could not generate right now. Please try again.', aiRegen:'Regenerate', aiHint:'Based on the answers and current level of this practice.',
+        currentLvl:'Current', gapWord:'Gap', recsTitle:'Recommended actions', recsEmpty:'Practice at maximum level — keep improving continuously.', setTargetLabel:'Target', infoYes:'A full "yes" means that:', close:'Close', scExplain:'Each practice is scored 0–3 — the average of its two streams. Higher means a more mature, consistent practice. The radar shows all 15 practices (color = function); the bars compare each practice to its target, marked by the cyan line.',
+        bands:['Initial / Ad-hoc','Developing','Mature','Optimized'],
+        kpiOverall:'Overall maturity', kpiOnTarget:'Practices on target', kpiAvgGap:'Average gap', kpiLevel3:'Level 3 practices', kpiCoverage:'Coverage',
+        histKicker:'// history', histTitle:'Assessment history', histLead:'Each snapshot stores the full assessment state. Track maturity evolution over time.', histEmpty:'No snapshot saved yet. On the Scorecard, click “Save snapshot” to record the current state.', saveSnapNow:'Save current snapshot', trendTitle:'Overall maturity trend', snapsCount:'snapshots', vsPrev:'vs. previous', loadWord:'Load', deleteWord:'Delete', confirmDel:'Delete this snapshot?', currentWord2:'Current assessment (unsaved)',
+        snapSavedMsg:'Snapshot saved to history', savedWord:'Saved',
+        pdfReport:'Maturity report', pdfSummary:'Executive summary', pdfNextSteps:'Priority next steps', pdfNsLead:'Practices with the largest gap to target — start here.', pdfNoGaps:'All practices reached their target. Keep improving and re-assess periodically.', pdfDetail:'Per-practice detail', pdfFocusOn:'Focus', pdfHowto:'Maturity 0–3 per practice (average of 2 streams). Suggested target = next level to reach. Gap = distance to target.', pdfAssessed:'Assessed by', pdfScopeWord:'Scope',
+        cmpKicker:'// compare', cmpTitle:'Compare assessments', cmpLead:'Select two assessments to see the evolution practice by practice.', cmpPickA:'Baseline (before)', cmpPickB:'Compared (after)', cmpCurrent:'Current assessment', cmpDeltaWord:'Change', cmpPracticeWord:'Practice', cmpNeed:'Save at least one snapshot to compare.', cmpSame:'no change', cmpFnDelta:'Change by function', cmpOverallDelta:'Overall change' }
+    };
+    this.state = this.load();
+  }
+  defaults(){
+    return { lang:(this.props.defaultLang||'pt'), screen:'setup', started:false,
+      meta:{org:'',team:'',date:'',lead:'',contrib:''}, answers:{}, notes:{}, targets:{},
+      activeFnIdx:0, activePracticeIdx:0, snapshots:[], compareId:null, showTarget:true, showCompare:false, ai:{}, viewLevels:{}, cmpA:'', cmpB:'cur' };
+  }
+  load(){ try{ const s=localStorage.getItem(this.KEY); if(s) return Object.assign(this.defaults(), JSON.parse(s)); }catch(e){} return this.defaults(); }
+  save(){ try{ const s=Object.assign({}, this.state); delete s.toast; localStorage.setItem(this.KEY, JSON.stringify(s)); }catch(e){} }
+  set(p){ this.setState(p, ()=>this.save()); }
+  d(){ return window.SAMM; }
+
+  // ----- scoring -----
+  ps(p, answers){
+    const ss = (st)=>{ let s=0; for(const q of p.questions){ if(q.stream===st){ const a=answers[q.id]; if(a!=null) s+=this.W[a]; } } return s; };
+    return (ss('A')+ss('B'))/2;
+  }
+  allPractices(){ const a=[]; for(const f of this.d().functions) for(const p of f.practices) a.push({f,p}); return a; }
+  findQ(id){ for(const f of this.d().functions) for(const p of f.practices) for(const q of p.questions){ if(q.id===id) return {f,p,q}; } return null; }
+  levelScore(p, lv, answers){ const w=(st)=>{ const q=p.questions.find(q=>q.level===lv && q.stream===st); const a=q?answers[q.id]:null; return a!=null?this.W[a]:0; }; return (w('A')+w('B'))/2; }
+  levelStatus(p, lv, answers){ const ls=this.levelScore(p,lv,answers); if(ls>=0.75) return 'done'; if(ls>0) return 'partial'; return 'none'; }
+  achievedLevel(p, answers){ return Math.floor(this.ps(p,answers)+1e-9); }
+  levelFill(p, lv, answers){ const sc=this.ps(p,answers); if(sc>=lv) return 1; if(sc>lv-1) return sc-(lv-1); return 0; }
+  effTarget(p, answers, targets){ const t=targets[p.code]; if(t>0) return t; return Math.min(3, this.achievedLevel(p,answers)+1); }
+  async askAI(code){
+    const S=this.state, D=this.d(), isPT=S.lang==='pt';
+    let target=null; for(const f of D.functions){ const p=f.practices.find(p=>p.code===code); if(p){ target={f,p}; break; } }
+    if(!target) return;
+    const ai=Object.assign({}, S.ai); ai[code]={loading:true}; this.set({ai});
+    const {f,p}=target; const sc=this.ps(p,S.answers); const tg=this.effTarget(p,S.answers,S.targets);
+    const achievedA=this.achievedLevel(p,S.answers);
+    const focusLevel = achievedA>=tg ? 0 : Math.min(3, achievedA+1);
+    const focusForAI = focusLevel || tg || Math.min(3, achievedA+1);
+    const tgTxt = tg>0 ? String(tg) : (isPT?'não definida (assuma nível 1)':'not set (assume level 1)');
+    let ctx=''; for(const lv of [1,2,3]){ const qs=p.questions.filter(q=>q.level===lv).sort((a,b)=>a.stream.localeCompare(b.stream));
+      ctx+= '\nNível '+lv+':\n'; for(const q of qs){ const a=S.answers[q.id]; const scaleArr=isPT?D.answerScalePT:D.answerScaleEN; const ans=a!=null?scaleArr[a].label:(isPT?'(sem resposta)':'(no answer)'); const note=S.notes[q.id]?(' | nota: '+S.notes[q.id]):''; ctx+= '  - ['+q.stream+'] '+(isPT?q.pt:q.en)+' => '+ans+note+'\n'; } }
+    const org=S.meta.org||(isPT?'o cliente':'the client'); const app=S.meta.team?(' ('+S.meta.team+')'):'';
+    const prompt = (isPT
+      ? `Você é um consultor sênior de segurança de aplicações da OKAMI usando o OWASP SAMM v2. Cliente: ${org}${app}. Prática: "${p.pt}" (função ${f.pt}). Maturidade atual: ${sc.toFixed(2)}/3. Meta escolhida: ${tgTxt}/3.\nRespostas atuais por nível:${ctx}\nCom base NISSO, gere um plano de ação curto e personalizado para fechar a lacuna ATÉ A META. Concentre as recomendações no Nível ${focusForAI} (o próximo nível ainda não concluído dentro da meta) e NÃO recomende ações acima do nível da meta (${tgTxt}). Use as respostas específicas acima para apontar exatamente o que está faltando. Liste no máximo 4 ações priorizadas por impacto vs. esforço (ganhos rápidos primeiro). Formate CADA ação EXATAMENTE assim, sem variar: uma linha "N. **Título curto e acionável**", depois "**O que fazer:** ...", "**Por que importa:** ...", "**Primeiro passo:** ...". Seja específico e técnico, sem encher linguiça. Não escreva introdução nem conclusão. Responda em português do Brasil.`
+      : `You are a senior application-security consultant at OKAMI using OWASP SAMM v2. Client: ${org}${app}. Practice: "${p.name}" (function ${f.name}). Current maturity: ${sc.toFixed(2)}/3. Chosen target: ${tgTxt}/3.\nCurrent answers by level:${ctx}\nBased on THIS, produce a short, tailored action plan to close the gap UP TO THE TARGET. Focus the recommendations on Level ${focusForAI} (the next unachieved level within the target) and do NOT recommend actions above the target level (${tgTxt}). Use the specific answers above to pinpoint exactly what is missing. List at most 4 actions prioritized by impact vs. effort (quick wins first). Format EACH action EXACTLY like this, no variation: a line "N. **Short actionable title**", then "**What to do:** ...", "**Why it matters:** ...", "**First step:** ...". Be specific and technical, no fluff. No intro or conclusion. Reply in English.`);
+    try{ const text = await window.claude.complete({ messages:[{role:'user', content:prompt}] });
+      const ai2=Object.assign({}, this.state.ai); ai2[code]={text:text}; this.set({ai:ai2});
+    }catch(e){ const ai2=Object.assign({}, this.state.ai); ai2[code]={error:true}; this.set({ai:ai2}); }
+  }
+  mdToHtml(md){ if(!md) return '';
+    const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inl=s=>esc(s).replace(/\*\*([^*]+)\*\*/g,'<strong style="color:var(--ok-fg);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+    const lines=md.split(/\n/); let out=''; let inAction=false; let n=0;
+    const closeA=()=>{ if(inAction){ out+='</div></div>'; inAction=false; } };
+    for(let raw of lines){ const t=raw.trim(); if(!t) continue;
+      const mAct=t.match(/^(\d+)[.)]\s*\*\*(.+?)\*\*:?\s*(.*)$/);
+      const mNum=t.match(/^(\d+)[.)]\s+(.+)$/);
+      const mLbl=t.match(/^\*\*(.+?):\*\*\s*(.*)$/);
+      const mH=t.match(/^#{1,6}\s*(.+)$/);
+      if(mAct||mNum){ closeA(); n++; const title=(mAct?mAct[2]:mNum[2]).replace(/\*\*/g,'').replace(/:$/,'');
+        out+='<div style="display:flex;gap:11px;margin:0 0 10px;">';
+        out+='<div style="flex:none;width:23px;height:23px;border-radius:50%;background:var(--ok-magenta);color:#0a0a0f;font-family:var(--ok-mono);font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:1px;">'+n+'</div>';
+        out+='<div style="flex:1;min-width:0;"><div style="font-family:var(--ok-display);font-weight:600;font-size:14px;color:var(--ok-fg);line-height:1.35;margin-bottom:7px;">'+inl(title)+'</div>';
+        inAction=true; const rest=mAct?mAct[3]:''; if(rest) out+='<div style="font-family:var(--ok-display);font-size:13px;line-height:1.5;color:var(--ok-fg-soft);margin-bottom:6px;">'+inl(rest)+'</div>';
+      }
+      else if(mLbl){ const lab=mLbl[1], body=mLbl[2];
+        const fld='<div style="margin-bottom:6px;"><span style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok-magenta);">'+esc(lab)+'</span> <span style="font-family:var(--ok-display);font-size:13px;line-height:1.5;color:var(--ok-fg-soft);">'+inl(body)+'</span></div>';
+        out+=fld;
+      }
+      else if(/^[-*_]{3,}$/.test(t)){ /* skip hr */ }
+      else if(mH){ closeA(); out+='<div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-fg-mute);margin:2px 0 8px;">'+inl(mH[1])+'</div>'; }
+      else if(/^[-*]\s+/.test(t)){ out+='<div style="display:flex;gap:8px;font-family:var(--ok-display);font-size:13px;line-height:1.5;color:var(--ok-fg-soft);margin-bottom:5px;"><span style="color:var(--ok-magenta);flex:none;font-family:var(--ok-mono);">→</span><span>'+inl(t.replace(/^[-*]\s+/,''))+'</span></div>'; }
+      else { out+='<div style="font-family:var(--ok-display);font-size:13px;line-height:1.55;color:var(--ok-fg-soft);margin-bottom:8px;">'+inl(t)+'</div>'; }
+    }
+    closeA(); return out;
+  }
+  setAnswer(id,i){ const answers=Object.assign({},this.state.answers); answers[id]= (answers[id]===i? null : i); this.set({answers}); }
+  setNote(id,v){ const notes=Object.assign({},this.state.notes); notes[id]=v; this.set({notes}); }
+  setTarget(code,v){ const targets=Object.assign({},this.state.targets); targets[code]=v; this.set({targets}); }
+  setViewLevel(code,lv){ const v=Object.assign({},this.state.viewLevels); v[code]=lv; this.set({viewLevels:v}); }
+  setMeta(f,v){ const meta=Object.assign({},this.state.meta); meta[f]=v; this.set({meta}); }
+
+  go(screen){ const p={screen}; if(screen!=='setup') p.started=true; this.set(p); window.scrollTo&&window.scrollTo(0,0); }
+  prevPractice(){ let fi=this.state.activeFnIdx, pi=this.state.activePracticeIdx; pi--; if(pi<0){ fi--; if(fi<0){fi=0;pi=0;} else pi=2; } this.set({activeFnIdx:fi,activePracticeIdx:pi}); window.scrollTo&&window.scrollTo(0,0); }
+  nextPractice(){ const F=this.d().functions; let fi=this.state.activeFnIdx, pi=this.state.activePracticeIdx; pi++; if(pi>2){ fi++; pi=0; } if(fi>F.length-1){ this.go('scorecard'); return; } this.set({activeFnIdx:fi,activePracticeIdx:pi}); window.scrollTo&&window.scrollTo(0,0); }
+
+  saveSnapshot(){
+    const S=this.state; const L=this.STR[S.lang];
+    const ps=this.allPractices().map(x=>this.ps(x.p,S.answers)); const avg=ps.reduce((a,b)=>a+b,0)/ps.length;
+    const snap={ id:'s'+Date.now(), name:(S.meta.team||S.meta.org||('Snapshot '+(S.snapshots.length+1))), date:(S.meta.date|| new Date().toISOString().slice(0,10)), answers:Object.assign({},S.answers), score:avg.toFixed(2) };
+    this.set({ snapshots:[...S.snapshots, snap] });
+    if(this._toastT) clearTimeout(this._toastT);
+    this.setState({ toast: L.snapSavedMsg });
+    this._toastT=setTimeout(()=>this.setState({ toast:'' }), 2800);
+  }
+  exportJSON(){
+    try{ const blob=new Blob([JSON.stringify(this.state,null,2)],{type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download='okami-maturity-'+((this.state.meta.org||'assessment').replace(/[^a-z0-9]+/gi,'-').toLowerCase())+'.json';
+      document.body.appendChild(a); a.click(); a.remove(); }catch(e){}
+  }
+  importJSON(e){
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(r.result); this.set(Object.assign(this.defaults(),obj)); }catch(err){} }; r.readAsText(f);
+  }
+  printPage(){ this.generatePDF(); }
+  generatePDF(){
+    const JS = window.jspdf && window.jspdf.jsPDF;
+    if(!JS){ window.print&&window.print(); return; }
+    const S=this.state, D=this.d(), isPT=S.lang==='pt', L=this.STR[S.lang], prs=this.allPractices();
+    const fhex={ G:[228,120,42], D:[70,180,205], I:[230,82,150], V:[224,176,52], O:[74,194,134] };
+    const orange=[228,120,42], ink=[26,26,34], mute=[122,124,142], soft=[78,80,98], line=[224,224,232], cyanc=[52,150,182], green=[56,172,112], warn=[206,150,40], white=[255,255,255], dark=[11,11,18];
+    const doc=new JS('p','mm','a4'); const W=210, H=297, M=15; let y=0;
+    const set=(sz,col,bold)=>{ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(sz); doc.setTextColor(col[0],col[1],col[2]); };
+    const tl=(s,x,yy,sz,col,bold)=>{ set(sz,col,bold); doc.text(String(s),x,yy); };
+    const tr=(s,x,yy,sz,col,bold)=>{ set(sz,col,bold); doc.text(String(s),x,yy,{align:'right'}); };
+    const trunc=(s,maxw,sz,bold)=>{ set(sz,ink,bold); s=String(s); if(doc.getTextWidth(s)<=maxw) return s; while(s.length>1 && doc.getTextWidth(s+'...')>maxw) s=s.slice(0,-1); return s+'...'; };
+    const need=(h)=>{ if(y+h>H-16){ doc.addPage(); y=18; } };
+
+    const today=new Date().toISOString().slice(0,10);
+    const overall=prs.reduce((a,x)=>a+this.ps(x.p,S.answers),0)/prs.length;
+    const band=L.bands[Math.max(0,Math.min(3,Math.floor(overall+1e-9)))];
+    const bandPct=Math.round(overall/3*100);
+    const headerBand=(title,scope)=>{ doc.setFillColor(dark[0],dark[1],dark[2]); doc.rect(0,0,W,26,'F'); doc.setFillColor(orange[0],orange[1],orange[2]); doc.rect(0,26,W,1,'F');
+      tl('OKAMI', M, 14, 15, white, true); const okw=doc.getTextWidth('OKAMI'); tl('Maturity', M+okw+2.4, 14, 15, orange, true);
+      tl(title, M, 21, 7.5, [165,167,184]);
+      tr(scope||today, W-M, 14, 8, [150,152,168]); tr(today, W-M, 20, 7, [110,112,130]); };
+
+    // ===================== PAGE 1 — summary =====================
+    headerBand(L.pdfSummary.toUpperCase()+'  ·  OWASP SAMM v2', (S.meta.org||S.meta.team||''));
+    y=38;
+    const mp=[S.meta.org,S.meta.team].filter(Boolean).join('   ·   ')||'—';
+    tl(trunc(mp, 118, 15, true), M, y, 15, ink, true);
+    const subBits=[S.meta.date&&((isPT?'Data ':'Date ')+S.meta.date), S.meta.lead&&((isPT?'Líder ':'Lead ')+S.meta.lead), S.meta.contrib&&(L.pdfAssessed+' '+S.meta.contrib)].filter(Boolean);
+    if(subBits.length) tl(trunc(subBits.join('    ·    '), 118, 9), M, y+6.5, 9, mute);
+    // overall chip (right)
+    const chipW=58, chipX=W-M-chipW, chipY=y-6, chipH=24;
+    doc.setFillColor(dark[0],dark[1],dark[2]); doc.rect(chipX,chipY,chipW,chipH,'F');
+    tr(L.overall.toUpperCase(), W-M-3, chipY+6, 6.5, [150,152,168]);
+    tr(overall.toFixed(2), W-M-3, chipY+16, 19, orange, true);
+    tr(band, W-M-3, chipY+21, 6.8, [200,202,216]);
+    y+=14;
+    doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.3); doc.line(M,y,W-M,y); y+=8;
+
+    // KPIs
+    const onTarget=prs.filter(x=>this.achievedLevel(x.p,S.answers)>=this.effTarget(x.p,S.answers,S.targets)).length;
+    const avgGap=prs.reduce((a,x)=>a+Math.max(0,this.effTarget(x.p,S.answers,S.targets)-this.ps(x.p,S.answers)),0)/prs.length;
+    const stt=this.evalStats(S.answers);
+    const kp=[ [L.kpiOnTarget, String(onTarget), '/15', cyanc], [L.kpiLevel3, String(stt.atL3), '/15', green], [L.kpiAvgGap, avgGap.toFixed(2), '', avgGap>0.05?warn:green], [L.kpiCoverage, String(Math.round(stt.answered/stt.total*100)), '%', soft] ];
+    const gp=3.5, kw=(W-2*M-gp*3)/4, kh=19;
+    kp.forEach((k,i)=>{ const x=M+i*(kw+gp); doc.setDrawColor(line[0],line[1],line[2]); doc.setFillColor(250,250,252); doc.rect(x,y,kw,kh,'FD');
+      doc.setFillColor(k[3][0],k[3][1],k[3][2]); doc.rect(x,y,1.4,kh,'F');
+      tl(trunc(k[0].toUpperCase(), kw-7, 6), x+4, y+6.5, 6, mute);
+      tl(k[1], x+4, y+15.5, 15, ink, true); const vw=doc.getTextWidth(k[1]); if(k[2]) tl(k[2], x+4+vw+1.5, y+15.5, 8, mute); });
+    y+=kh+11;
+
+    // by function
+    tl('// '+L.byFunction.toUpperCase(), M, y, 9, mute, true); y+=7;
+    const barX=W-M-58, barW=58;
+    D.functions.forEach(f=>{ const arr=f.practices.map(p=>this.ps(p,S.answers)); const avg=arr.reduce((a,b)=>a+b,0)/arr.length; const c=fhex[f.code];
+      doc.setFillColor(c[0],c[1],c[2]); doc.rect(M, y-2.6, 2.6, 2.6, 'F');
+      tl(trunc((isPT?f.pt:f.name), barX-M-24, 10, false), M+5, y, 10, ink);
+      tr(avg.toFixed(2), barX-4, y, 9.5, soft, true);
+      doc.setFillColor(238,238,242); doc.rect(barX, y-3, barW, 3.4, 'F'); doc.setFillColor(c[0],c[1],c[2]); doc.rect(barX, y-3, barW*(avg/3), 3.4, 'F');
+      y+=8.6; });
+    y+=6;
+
+    // next steps
+    tl('// '+L.pdfNextSteps.toUpperCase(), M, y, 9, mute, true); y+=5.5;
+    tl(L.pdfNsLead, M, y, 8.5, mute); y+=7;
+    const pri=prs.map(x=>{ const sc=this.ps(x.p,S.answers); const ach=this.achievedLevel(x.p,S.answers); const tg=this.effTarget(x.p,S.answers,S.targets); return { x, sc, ach, tg, gap:Math.max(0,tg-sc), focus:Math.min(3,ach+1) }; })
+      .filter(p=>p.gap>0.001).sort((a,b)=> b.gap-a.gap || a.sc-b.sc).slice(0,5);
+    if(pri.length===0){ doc.setFillColor(247,250,248); doc.setDrawColor(green[0],green[1],green[2]); doc.rect(M,y,W-2*M,13,'FD'); tl(L.pdfNoGaps, M+5, y+8, 9, soft); y+=18; }
+    else { pri.forEach((p,i)=>{ const c=fhex[p.x.f.code]; const act=[ (isPT?p.x.p.activities.A.pt:p.x.p.activities.A.en), (isPT?p.x.p.activities.B.pt:p.x.p.activities.B.en) ].join('  ·  ');
+        doc.setFillColor(c[0],c[1],c[2]); doc.rect(M, y-2.8, 2.6, 12.5, 'F');
+        tl((i+1)+'.', M+5, y, 9.5, mute, true);
+        tl(trunc((isPT?p.x.p.pt:p.x.p.name), 96, 10, true), M+11, y, 10, ink, true);
+        tr((isPT?'Nível ':'Lv ')+p.ach+'  »  '+p.tg, W-M-26, y, 9, soft, false);
+        tr((isPT?'lacuna ':'gap ')+'+'+p.gap.toFixed(2), W-M, y, 9, warn, true);
+        tl(L.pdfFocusOn+' '+L.level+' '+p.focus+'  ·  '+trunc(act, 120, 8), M+11, y+5, 8, mute);
+        doc.setDrawColor(238,238,242); doc.line(M,y+8.5,W-M,y+8.5); y+=13; });
+    }
+
+    // ===================== PAGE 2 — detail table =====================
+    doc.addPage(); y=0; headerBand(L.pdfDetail.toUpperCase(), (S.meta.org||S.meta.team||'')); y=38;
+    tl('// '+L.pdfDetail.toUpperCase(), M, y, 10, ink, true); y+=5;
+    tl(L.pdfHowto, M, y, 8, mute); y+=8;
+    const cGap=W-M, cTarget=W-M-22, cScore=W-M-46, cLevel=W-M-70, nameMax=cLevel-24-(M+5);
+    tl(L.cmpPracticeWord.toUpperCase(), M+5, y, 7, mute);
+    tr((isPT?'NÍVEL':'LEVEL'), cLevel, y, 7, mute); tr('SCORE', cScore, y, 7, mute); tr('META', cTarget, y, 7, mute); tr(L.gapWord.toUpperCase(), cGap, y, 7, mute);
+    y+=2.5; doc.setDrawColor(line[0],line[1],line[2]); doc.line(M,y,W-M,y); y+=6;
+    let lastFn=null;
+    prs.forEach(x=>{ const c=fhex[x.f.code]; const sc=this.ps(x.p,S.answers); const ach=this.achievedLevel(x.p,S.answers); const tg=this.effTarget(x.p,S.answers,S.targets); const gap=Math.max(0,tg-sc);
+      if(x.f.code!==lastFn){ lastFn=x.f.code; tl((isPT?x.f.pt:x.f.name).toUpperCase(), M, y+0.5, 7, c, true); y+=5.5; }
+      doc.setFillColor(c[0],c[1],c[2]); doc.rect(M+2, y-2.5, 2.2, 2.2, 'F');
+      tl(trunc((isPT?x.p.pt:x.p.name), nameMax, 9.5), M+7, y, 9.5, ink);
+      tr((isPT?'Nível ':'Lv ')+ach, cLevel, y, 9, soft);
+      tr(sc.toFixed(2), cScore, y, 9, soft);
+      tr(String(tg), cTarget, y, 9, cyanc, true);
+      tr((gap>0?('+'+gap.toFixed(2)):'0'), cGap, y, 9, gap>0?warn:green, true);
+      doc.setDrawColor(240,240,244); doc.line(M+7,y+2.6,W-M,y+2.6); y+=7; });
+
+    // ===== footer (all pages) =====
+    const pages=doc.internal.getNumberOfPages();
+    for(let p=1;p<=pages;p++){ doc.setPage(p); doc.setDrawColor(line[0],line[1],line[2]); doc.line(M,H-13,W-M,H-13);
+      tl('OWASP SAMM v2  ·  OKAMI  ·  okamiops.com', M, H-8, 7.5, mute);
+      tr(L.pdfReport+'  ·  '+p+' / '+pages, W-M, H-8, 7.5, mute); }
+    try{ window.open(doc.output('bloburl'),'_blank'); }catch(e){}
+    doc.save('okami-maturity-'+((S.meta.org||S.meta.team||'assessment').replace(/[^a-z0-9]+/gi,'-').toLowerCase().replace(/^-|-$/g,''))+'.pdf');
+  }
+  deleteSnapshot(id){ const L=this.STR[this.state.lang]; if(!window.confirm||window.confirm(L.confirmDel)){ this.set({ snapshots:this.state.snapshots.filter(s=>s.id!==id), compareId: this.state.compareId===id?null:this.state.compareId }); } }
+  evalStats(answers){ const D=this.d(); const prs=this.allPractices();
+    const byPractice=prs.map(x=>({ code:x.p.code, fn:x.f.code, score:this.ps(x.p,answers), achieved:this.achievedLevel(x.p,answers) }));
+    const overall=byPractice.reduce((a,b)=>a+b.score,0)/byPractice.length;
+    const byFunction=D.functions.map(f=>({ code:f.code, score: f.practices.reduce((a,p)=>a+this.ps(p,answers),0)/f.practices.length }));
+    let answered=0,total=0; for(const x of prs) for(const q of x.p.questions){ total++; if(answers[q.id]!=null) answered++; }
+    const atL3=byPractice.filter(b=>b.achieved>=3).length;
+    return { overall, byPractice, byFunction, answered, total, atL3 };
+  }
+  snapList(){ const S=this.state; const cur={ id:'cur', name:this.STR[S.lang].cmpCurrent, date:(S.meta.date||new Date().toISOString().slice(0,10)), answers:S.answers, current:true };
+    return [cur, ...S.snapshots.slice().reverse()]; }
+
+  buildRadar(size){
+    const S=this.state; const prs=this.allPractices(); const n=prs.length;
+    const cx=size/2, cy=size/2, R=size*0.32;
+    const ang=i=>(-90 + i*360/n)*Math.PI/180;
+    const ptp=(i,v)=>{ const r=R*(Math.max(0,Math.min(3,v))/3); return [ +(cx+r*Math.cos(ang(i))).toFixed(1), +(cy+r*Math.sin(ang(i))).toFixed(1) ]; };
+    const rings=[1,2,3].map(k=>({ r:+(R*k/3).toFixed(1) }));
+    const axes=prs.map((x,i)=>{ const ex=cx+R*Math.cos(ang(i)), ey=cy+R*Math.sin(ang(i)); const lr=R*1.16; const lx=cx+lr*Math.cos(ang(i)), ly=cy+lr*Math.sin(ang(i)); const c=Math.cos(ang(i));
+      return { x1:cx, y1:cy, x2:+ex.toFixed(1), y2:+ey.toFixed(1), lx:+lx.toFixed(1), ly:+ly.toFixed(1), label:x.p.code, color:this.fnColors[x.f.code], anchor: Math.abs(c)<0.34?'middle':(c>0?'start':'end') }; });
+    const poly=vals=>vals.map((v,i)=>ptp(i,v).join(',')).join(' ');
+    const cur=prs.map(x=>this.ps(x.p,S.answers));
+    const tgt=prs.map(x=>this.effTarget(x.p,S.answers,S.targets));
+    let comparePoints=null; const snap=S.snapshots.find(s=>s.id===S.compareId);
+    if(snap) comparePoints=poly(prs.map(x=>this.ps(x.p,snap.answers)));
+    const dots=cur.map((v,i)=>{ const [x,y]=ptp(i,v); return {x,y, color:this.fnColors[prs[i].f.code]}; });
+    const spokes=cur.map((v,i)=>{ const [x,y]=ptp(i,v); return {x2:x, y2:y, color:this.fnColors[prs[i].f.code]}; });
+    return { size, cx, cy, R, rings, axes, currentPoints:poly(cur), targetPoints:poly(tgt), comparePoints, dots, spokes };
+  }
+
+  // style helpers (objects)
+  langStyle(active){ return { height:'34px', padding:'0 13px', background: active?'var(--ok-accent)':'transparent', border:'none', color: active?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-mono)', fontSize:'11px', fontWeight: active?700:500, letterSpacing:'.1em', cursor:'pointer' }; }
+  stepStyle(active){ return { display:'inline-flex', alignItems:'center', gap:'9px', padding:'14px 18px', background:'transparent', border:'none', borderBottom: '2px solid '+(active?'var(--ok-accent)':'transparent'), color: active?'var(--ok-fg)':'var(--ok-fg-mute)', fontFamily:'var(--ok-display)', fontWeight:500, fontSize:'14px', cursor:'pointer', marginBottom:'-1px' }; }
+  fnNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'10px 12px', textAlign:'left', background: active?'var(--ok-bg-2)':'transparent', border:'1px solid '+(active?'var(--ok-line)':'transparent'), borderLeft:'2px solid '+(active?color:'transparent'), color:'var(--ok-fg)', cursor:'pointer' }; }
+  pNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'9px 12px 9px 10px', textAlign:'left', background: active?'color-mix(in oklch,'+color+' 12%,transparent)':'transparent', border:'1px solid '+(active?'color-mix(in oklch,'+color+' 40%,var(--ok-line))':'var(--ok-line-soft)'), color: active?'var(--ok-fg)':'var(--ok-fg-soft)', cursor:'pointer' }; }
+  optStyle(selected,color){ return { minHeight:'44px', padding:'8px 10px', background: selected?color:'var(--ok-bg-0)', border:'1px solid '+(selected?color:'var(--ok-line)'), color: selected?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-display)', fontWeight: selected?600:400, fontSize:'13px', lineHeight:1.25, cursor:'pointer', textAlign:'center' }; }
+  toggleStyle(on,color){ return { height:'28px', padding:'0 11px', background: on?'color-mix(in oklch,'+color+' 18%,transparent)':'transparent', border:'1px solid '+(on?color:'var(--ok-line)'), color: on?color:'var(--ok-fg-mute)', fontFamily:'var(--ok-mono)', fontSize:'10px', letterSpacing:'.1em', textTransform:'uppercase', cursor:'pointer' }; }
+  snapStyle(sel){ return { display:'flex', flexDirection:'column', gap:'3px', alignItems:'flex-start', padding:'10px 14px', background: sel?'color-mix(in oklch,var(--ok-magenta) 14%,transparent)':'var(--ok-bg-1)', border:'1px solid '+(sel?'var(--ok-magenta)':'var(--ok-line)'), color:'var(--ok-fg)', cursor:'pointer' }; }
+  cmpOptStyle(sel){ return { padding:'8px 12px', textAlign:'left', background: sel?'color-mix(in oklch,var(--ok-cyan) 14%,var(--ok-bg-0))':'var(--ok-bg-0)', border:'1px solid '+(sel?'var(--ok-cyan)':'var(--ok-line)'), color: sel?'var(--ok-fg)':'var(--ok-fg-soft)', fontFamily:'var(--ok-mono)', fontSize:'11px', letterSpacing:'.02em', cursor:'pointer', whiteSpace:'nowrap' }; }
+  tgtBtnStyle(sel,color){ return { width:'30px', height:'28px', background: sel?color:'transparent', border:'none', borderRight:'1px solid var(--ok-line)', color: sel?'#06060b':'var(--ok-fg-mute)', fontFamily:'var(--ok-mono)', fontSize:'12px', fontWeight: sel?700:500, cursor:'pointer' }; }
+
+  renderVals(){
+    const S=this.state, D=this.d(), lang=S.lang, isPT=lang==='pt', L=this.STR[lang];
+    if(!D) return { L:L, tagline:L.tagline, isSetup:true, isAssess:false, isScore:false, isRoad:false };
+    const fc=this.fnColors;
+    const themeStyle = { '--ok-accent': (this.props.accent==='cyan'?'var(--ok-cyan)':this.props.accent==='magenta'?'var(--ok-magenta)':'var(--ok-orange)'), '--ok-glow': String(this.props.glow!=null?this.props.glow:0.55) };
+
+    // steps
+    const stepDefs=[['setup',L.stSetup,'01'],['assess',L.stAssess,'02'],['scorecard',L.stScore,'03'],['roadmap',L.stRoad,'04'],['history',L.stHistory,'05'],['compare',L.stCompare,'06']];
+    const steps=stepDefs.map(([k,label,num])=>({ num, label, onClick:()=>this.go(k), style:this.stepStyle(S.screen===k) }));
+
+    // overall progress
+    let total=0, answered=0;
+    for(const f of D.functions) for(const p of f.practices) for(const q of p.questions){ total++; if(S.answers[q.id]!=null) answered++; }
+    const overallPct=total?Math.round(answered/total*100):0;
+
+    // fn nav
+    const fnNav=D.functions.map((f,fi)=>{ let t=0,a=0; for(const p of f.practices) for(const q of p.questions){ t++; if(S.answers[q.id]!=null)a++; }
+      return { code:f.code, label:isPT?f.pt:f.name, color:fc[f.code], ans:a, total:t, onClick:()=>this.set({activeFnIdx:fi,activePracticeIdx:0}), style:this.fnNavStyle(fi===S.activeFnIdx, fc[f.code]) }; });
+    const activeFn=D.functions[S.activeFnIdx];
+    const apColor=fc[activeFn.code];
+    const practiceNav=activeFn.practices.map((p,pi)=>{ const sc=this.ps(p,S.answers);
+      return { label:isPT?p.pt:p.name, score:sc.toFixed(2), color:apColor, onClick:()=>this.set({activePracticeIdx:pi}), style:this.pNavStyle(pi===S.activePracticeIdx, apColor) }; });
+
+    // active practice questions
+    const ap=activeFn.practices[S.activePracticeIdx];
+    const scale=isPT?D.answerScalePT:D.answerScaleEN;
+    const buildQ=(q)=>{ const ans=S.answers[q.id];
+      return { id:q.id, stream:q.stream, streamColor: q.stream==='A'?'var(--ok-cyan)':'var(--ok-magenta)',
+        activityLabel: isPT?ap.activities[q.stream].pt:ap.activities[q.stream].en,
+        text: isPT?q.pt:q.en, guidance: isPT?q.guidancePt:q.guidance, note:S.notes[q.id]||'',
+        onNote:(e)=>this.setNote(q.id, e.target.value), onInfo:()=>this.set({infoId:q.id}),
+        options: scale.map((o,i)=>({ label:o.label, onClick:()=>this.setAnswer(q.id,i), style:this.optStyle(ans===i, this.ansColors[i]) })) }; };
+    const levels=[1,2,3].map(lv=>({ label:L.level+' '+lv, questions: ap.questions.filter(q=>q.level===lv).sort((a,b)=>a.stream.localeCompare(b.stream)).map(buildQ) }));
+
+    // scorecard
+    const prs=this.allPractices();
+    const psVals=prs.map(x=>this.ps(x.p,S.answers));
+    const overall=psVals.reduce((a,b)=>a+b,0)/psVals.length;
+    const bandIdx=Math.max(0,Math.min(3,Math.floor(overall+0.0001)));
+    const functionsSummary=D.functions.map(f=>{ const arr=f.practices.map(p=>this.ps(p,S.answers)); const avg=arr.reduce((a,b)=>a+b,0)/arr.length;
+      return { code:f.code, label:isPT?f.pt:f.name, color:fc[f.code], score:avg.toFixed(2),
+        practices: f.practices.map((p,i)=>({ label:isPT?p.pt:p.name, score:arr[i].toFixed(2), pctW:(arr[i]/3*100)+'%' })) }; });
+    const bars=prs.map((x,i)=>{ const tg=this.effTarget(x.p,S.answers,S.targets); return { label:isPT?x.p.pt:x.p.name, color:fc[x.f.code], score:psVals[i].toFixed(2), pctW:(psVals[i]/3*100)+'%', targetLeft:(tg/3*100)+'%' }; });
+    const radar=this.buildRadar(360);
+    const snapshots=S.snapshots.map(s=>({ name:s.name, date:s.date, score:s.score, onClick:()=>this.set({ compareId: S.compareId===s.id?null:s.id, showCompare: S.compareId===s.id?false:true }), style:this.snapStyle(S.compareId===s.id) }));
+    const metaParts=[S.meta.org,S.meta.team,S.meta.date].filter(Boolean); 
+
+    // roadmap — level ladder per practice
+    const statusMap={ done:{label:L.stDone, color:'var(--ok-success)'}, partial:{label:L.stPartial, color:'var(--ok-warning)'}, none:{label:L.stNone, color:'var(--ok-fg-dim)'} };
+    const roadmap=prs.map(x=>{ const sc=this.ps(x.p,S.answers); const pcol=fc[x.f.code];
+      const achieved=this.achievedLevel(x.p,S.answers);
+      const tg=this.effTarget(x.p,S.answers,S.targets); const gap=Math.max(0,tg-sc);
+      const atMax = achieved>=3; const reached = tg>0 && achieved>=tg;
+      const focusLevel = (atMax||reached) ? 0 : Math.min(3, achieved+1);
+      const viewLevel = Math.min(3, Math.max(1, S.viewLevels[x.p.code] || focusLevel || achieved || 1));
+      const rail=[1,2,3].map(lv=>{ const fill=this.levelFill(x.p,lv,S.answers); const levelDone= fill>=1; const st= fill>=1?'done':(fill>0?'partial':'none');
+        const isFocus=lv===focusLevel; const beyond= tg>0 && lv>tg; const isTarget= tg>0 && lv===tg; const viewed= lv===viewLevel;
+        const statusColor= levelDone?pcol: (st==='partial'?'var(--ok-fg-soft)':'var(--ok-fg-dim)');
+        const fillColor= levelDone?pcol: (st==='partial'?('color-mix(in oklch,'+pcol+' 55%,var(--ok-fg-dim))'):'transparent');
+        const col= levelDone?pcol: isFocus?'var(--ok-cyan)': beyond?'var(--ok-fg-dim)':'var(--ok-fg-mute)';
+        const sl= levelDone?L.viewingDone : (st==='partial'?L.viewingPartial:L.viewingNone);
+        const marker = (lv===achieved && achieved>0) ? 'here' : (isTarget ? 'meta' : '');
+        return { level:lv, color:col, statusLabel:sl, statusColor, isCurrent: lv===achieved && achieved>0, isTarget, beyond, viewed,
+          fillW:(fill*100).toFixed(0)+'%', fillColor,
+          marker, isHere: marker==='here', isMeta: marker==='meta', noMarker: marker==='',
+          mark: levelDone?'✓':String(lv), badgeBg: levelDone?pcol: isFocus?'var(--ok-cyan)':'var(--ok-bg-2)', badgeFg:(levelDone||isFocus)?'#06060b':'var(--ok-fg-mute)',
+          labelColor: viewed? col : 'var(--ok-fg-mute)', barBg: viewed?'var(--ok-bg-3)':'var(--ok-bg-2)', segBg: viewed?'color-mix(in oklch,'+col+' 7%,transparent)':'transparent', opacity: beyond?'0.4':'1',
+          onClick:()=>this.setViewLevel(x.p.code, lv) }; });
+      const vFill=this.levelFill(x.p,viewLevel,S.answers); const vSt = vFill>=1?'done':(vFill>0?'partial':'none');
+      const vLabelMap = { done:L.viewingDone, partial:L.viewingPartial, none:L.viewingNone };
+      const vIsFocus = viewLevel===focusLevel;
+      const vTag = vIsFocus ? L.nextWord : vLabelMap[vSt];
+      const vColor = vIsFocus ? 'var(--ok-cyan)' : (vSt==='done'?pcol:statusMap[vSt].color);
+      const vqs=x.p.questions.filter(q=>q.level===viewLevel).sort((a,b)=>a.stream.localeCompare(b.stream));
+      const vw=vqs.map(q=>{ const a=S.answers[q.id]; return a!=null?this.W[a]:0; }); const vMin=Math.min.apply(null,vw);
+      const vMinCount=vw.filter(function(w){return w===vMin;}).length;
+      const focus={ level:viewLevel, tag:vTag, tagColor:vColor,
+        streams: vqs.map((q,i)=>{ const a=S.answers[q.id]; const scaleArr=isPT?D.answerScalePT:D.answerScaleEN; const quick = vIsFocus && vw[i]===vMin && vw[i]<1 && vMinCount===1;
+          return { stream:q.stream, streamColor:q.stream==='A'?'var(--ok-cyan)':'var(--ok-magenta)', activity:isPT?x.p.activities[q.stream].pt:x.p.activities[q.stream].en, question:isPT?q.pt:q.en, items: isPT?q.guidancePt:q.guidance,
+            answerLabel: a!=null?scaleArr[a].label:(isPT?'Sem resposta':'No answer'), quick, quickColor:pcol, cardBorder: quick?pcol:'var(--ok-line)', cardBg: quick?('color-mix(in oklch,'+pcol+' 6%,var(--ok-bg-0))'):'var(--ok-bg-0)' }; }) };
+      const completed=[]; for(let lv=1; lv<=achieved; lv++) completed.push({ level:lv });
+      const aiState=S.ai[x.p.code]||{};
+      const stateLabel = atMax ? L.maxMsg : (reached ? L.targetReachedMsg : (L.nextStepMsg+' '+L.level+' '+focusLevel));
+      const stateColor = (atMax||reached) ? pcol : 'var(--ok-cyan)';
+      return { code:x.p.code, label:isPT?x.p.pt:x.p.name, fnLabel:isPT?x.f.pt:x.f.name, color:fc[x.f.code],
+        score:sc.toFixed(2), target:tg, gap:gap>0?('+'+gap.toFixed(2)):'0', gapColor: gap>0?'var(--ok-warning)':pcol,
+        achievedLabel: achieved===0?L.initialFull:(L.level+' '+achieved), currentColor: achieved===0?'var(--ok-warning)':pcol, notAchievedL1: achieved===0,
+        rail, focus, hasFocus:true, completed, hasCompleted: completed.length>0, stateLabel, stateColor, metaLabel: tg>0?(L.level+' '+tg):'—',
+        onAI:()=>this.askAI(x.p.code), aiLoading:!!aiState.loading, aiHasText:!!aiState.text, aiError:!!aiState.error, aiHtmlObj: {__html: aiState.text?this.mdToHtml(aiState.text):''},
+        targetOptions:[1,2,3].map(v=>({ v, onClick:()=>this.setTarget(x.p.code,v), style:this.tgtBtnStyle(tg===v, 'var(--ok-cyan)') })) }; });
+
+    // ===== KPIs (current) =====
+    const curStats=this.evalStats(S.answers);
+    const onTarget=prs.filter(x=>this.achievedLevel(x.p,S.answers) >= this.effTarget(x.p,S.answers,S.targets)).length;
+    const avgGap=prs.reduce((a,x)=>a+Math.max(0,this.effTarget(x.p,S.answers,S.targets)-this.ps(x.p,S.answers)),0)/prs.length;
+    const kpis=[
+      { label:L.kpiOverall, value:overall.toFixed(2), suf:'/3', color:'var(--ok-accent)' },
+      { label:L.kpiOnTarget, value:String(onTarget), suf:'/15', color:'var(--ok-cyan)' },
+      { label:L.kpiLevel3, value:String(curStats.atL3), suf:'/15', color:'var(--ok-success)' },
+      { label:L.kpiAvgGap, value:avgGap.toFixed(2), suf:'', color: avgGap>0.001?'var(--ok-warning)':'var(--ok-success)' },
+      { label:L.kpiCoverage, value:String(Math.round(curStats.answered/curStats.total*100)), suf:'%', color:'var(--ok-fg-soft)' }
+    ];
+
+    // ===== History =====
+    const snaps=S.snapshots;
+    const histItems=snaps.map((s,i)=>{ const stt=this.evalStats(s.answers); const prev= i>0? this.evalStats(snaps[i-1].answers).overall : null; const delta= prev!=null? (stt.overall-prev):null;
+      return { id:s.id, name:s.name, date:s.date, score:stt.overall.toFixed(2), idx:i+1,
+        hasDelta: delta!=null, delta: delta!=null?((delta>=0?'+':'')+delta.toFixed(2)):'', deltaColor: delta>0.001?'var(--ok-success)': delta<-0.001?'var(--ok-danger)':'var(--ok-fg-mute)',
+        fns: stt.byFunction.map(b=>({ color:fc[b.code], pctW:(b.score/3*100)+'%' })),
+        onDelete:()=>this.deleteSnapshot(s.id) }; });
+    const histReversed=histItems.slice().reverse();
+    const histHasData=snaps.length>0;
+    let trend=null;
+    if(snaps.length>0){ const w=620,h=88,pad=10; const vals=snaps.map(s=>this.evalStats(s.answers).overall); const n=vals.length; const step= n>1?(w-2*pad)/(n-1):0;
+      const xy=vals.map((v,i)=>{ const x= n>1? pad+i*step : w/2; const y= h-pad-(v/3)*(h-2*pad); return { x:+x.toFixed(1), y:+y.toFixed(1) }; });
+      trend={ w, h, line: xy.map(p=>p.x+','+p.y).join(' '), dots: xy, single: n===1 }; }
+
+    // ===== Compare =====
+    const optList=this.snapList();
+    const findSnap=(id)=> id==='cur'? {answers:S.answers} : (S.snapshots.find(s=>s.id===id)||null);
+    const cmpReady=S.snapshots.length>0;
+    const aId = (S.cmpA && (S.cmpA==='cur'||S.snapshots.some(s=>s.id===S.cmpA))) ? S.cmpA : (S.snapshots.length? S.snapshots[0].id : 'cur');
+    const bId = (S.cmpB && (S.cmpB==='cur'||S.snapshots.some(s=>s.id===S.cmpB))) ? S.cmpB : 'cur';
+    const aSnap=findSnap(aId), bSnap=findSnap(bId);
+    let compare={ rows:[], fnDelta:[] };
+    if(aSnap && bSnap){ const aS=this.evalStats(aSnap.answers), bS=this.evalStats(bSnap.answers); const dO=bS.overall-aS.overall;
+      const rows=prs.map((x,i)=>{ const av=aS.byPractice[i].score, bv=bS.byPractice[i].score; const d=bv-av;
+        return { label:isPT?x.p.pt:x.p.name, fnColor:fc[x.f.code], a:av.toFixed(2), b:bv.toFixed(2), aW:(av/3*100)+'%', bW:(bv/3*100)+'%',
+          delta:(d>0?'+':'')+d.toFixed(2), deltaColor: d>0.001?'var(--ok-success)': d<-0.001?'var(--ok-danger)':'var(--ok-fg-mute)' }; });
+      const fnDelta=D.functions.map((f,i)=>{ const d=bS.byFunction[i].score-aS.byFunction[i].score;
+        return { label:isPT?f.pt:f.name, color:fc[f.code], a:aS.byFunction[i].score.toFixed(2), b:bS.byFunction[i].score.toFixed(2), aW:(aS.byFunction[i].score/3*100)+'%', bW:(bS.byFunction[i].score/3*100)+'%',
+          deltaTxt:(d>0?'+':'')+d.toFixed(2), deltaColor: d>0.001?'var(--ok-success)': d<-0.001?'var(--ok-danger)':'var(--ok-fg-mute)' }; });
+      compare={ overallA:aS.overall.toFixed(2), overallB:bS.overall.toFixed(2), dOverall:(dO>=0?'+':'')+dO.toFixed(2), dColor: dO>0.001?'var(--ok-success)': dO<-0.001?'var(--ok-danger)':'var(--ok-fg-mute)', rows, fnDelta }; }
+    const cmpOptionsA=optList.map(o=>({ id:o.id, name:o.current?o.name:(o.name+' · '+o.date), onClick:()=>this.set({cmpA:o.id}), style:this.cmpOptStyle(aId===o.id) }));
+    const cmpOptionsB=optList.map(o=>({ id:o.id, name:o.current?o.name:(o.name+' · '+o.date), onClick:()=>this.set({cmpB:o.id}), style:this.cmpOptStyle(bId===o.id) }));
+
+    let info=null;
+    if(S.infoId){ const fq=this.findQ(S.infoId); if(fq){ info={ code:fq.p.code, practiceLabel:isPT?fq.p.pt:fq.p.name, level:fq.q.level, text:isPT?fq.q.pt:fq.q.en, guidance:isPT?fq.q.guidancePt:fq.q.guidance }; } }
+    const radarLegend=D.functions.map(f=>({ label:isPT?f.pt:f.name, color:fc[f.code] }));
+    return {
+      L, tagline:L.tagline, themeStyle,
+      radarLegend, isInfo:!!info, info: info||{guidance:[]}, closeInfo:()=>this.set({infoId:null}), stop:(e)=>e.stopPropagation(),
+      setPT:()=>this.set({lang:'pt'}), setEN:()=>this.set({lang:'en'}),
+      langPtStyle:this.langStyle(lang==='pt'), langEnStyle:this.langStyle(lang==='en'),
+      exportJSON:()=>this.exportJSON(), importJSON:(e)=>this.importJSON(e), printPage:()=>this.printPage(),
+      steps,
+      isSetup:S.screen==='setup', isAssess:S.screen==='assess', isScore:S.screen==='scorecard', isRoad:S.screen==='roadmap', isHistory:S.screen==='history', isCompare:S.screen==='compare',
+      meta:S.meta, onOrg:(e)=>this.setMeta('org',e.target.value), onTeam:(e)=>this.setMeta('team',e.target.value),
+      onDate:(e)=>this.setMeta('date',e.target.value), onLead:(e)=>this.setMeta('lead',e.target.value), onContrib:(e)=>this.setMeta('contrib',e.target.value),
+      startBtn:()=>this.go('assess'),
+      functionsSummary,
+      overallAnswered:answered, overallTotal:total, overallPct, overallPctW:overallPct+'%',
+      fnNav, activeFnLabel:isPT?activeFn.pt:activeFn.name, practiceNav,
+      apCode:ap.code, apLabel:isPT?ap.pt:ap.name, apColor,
+      apActA:isPT?ap.activities.A.pt:ap.activities.A.en, apActB:isPT?ap.activities.B.pt:ap.activities.B.en,
+      apScore:this.ps(ap,S.answers).toFixed(2), levels,
+      prevPractice:()=>this.prevPractice(), nextPractice:()=>this.nextPractice(),
+      nextLabel: (S.activeFnIdx===D.functions.length-1 && S.activePracticeIdx===2)? L.complete : L.nextBtn,
+      overallScore:overall.toFixed(2), overallBand:L.bands[bandIdx],
+      metaLine: metaParts.join('  ·  ')||'—',
+      radar, bars,
+      showTarget:S.showTarget, showCompare:S.showCompare,
+      showTargetLive:S.showTarget, showCompareLive: S.showCompare && !!radar.comparePoints,
+      toggleTarget:()=>this.set({showTarget:!S.showTarget}), toggleCompare:()=>this.set({showCompare:!S.showCompare}),
+      targetToggleStyle:this.toggleStyle(S.showTarget,'var(--ok-cyan)'), compareToggleStyle:this.toggleStyle(S.showCompare,'var(--ok-magenta)'),
+      saveSnapshot:()=>this.saveSnapshot(),
+      snapshots, hasSnapshots:S.snapshots.length>0, noSnapshots:S.snapshots.length===0,
+      roadmap,
+      kpis,
+      histReversed, histHasData, trend, hasTrend:!!trend,
+      compare, cmpReady, cmpOptionsA, cmpOptionsB, cmpHasRows: compare.rows.length>0,
+      toast:S.toast||'', hasToast:!!S.toast, snapCountLabel: S.snapshots.length>0?(' ('+S.snapshots.length+')'):''
+    };
+  }
+}
+</script>
+</body>
+</html>

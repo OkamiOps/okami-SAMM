@@ -79,8 +79,8 @@ function radarSVG(functions) {
   for (let i = 0; i < N; i++) { const [x, y] = pos(i, 3); g += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--doc-line-soft)" stroke-width="1"/>`; }
   const scorePoly = pts.map((p, i) => pos(i, p.score).join(',')).join(' ');
   const targetPoly = pts.map((p, i) => pos(i, p.target).join(',')).join(' ');
-  g += `<polygon points="${targetPoly}" fill="none" stroke="var(--doc-cyan)" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-  g += `<polygon points="${scorePoly}" fill="color-mix(in oklch, var(--doc-magenta) 16%, transparent)" stroke="var(--doc-magenta)" stroke-width="1.8"/>`;
+  g += `<polygon points="${targetPoly}" fill="none" stroke="var(--doc-cyan)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+  g += `<polygon points="${scorePoly}" fill="color-mix(in oklch, var(--doc-magenta) 24%, transparent)" stroke="var(--doc-magenta)" stroke-width="2.2"/>`;
   for (let i = 0; i < N; i++) {
     const p = pts[i]; const [x, y] = pos(i, p.score);
     g += `<circle cx="${x}" cy="${y}" r="2.6" fill="${FN_COLOR[p.fnCode]}"/>`;
@@ -88,7 +88,7 @@ function radarSVG(functions) {
     const anchor = Math.abs(lx - cx) < 14 ? 'middle' : (lx < cx ? 'end' : 'start');
     g += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-family="var(--ok-mono)" font-size="9" fill="var(--doc-ink-mute)">${esc(p.code)}</text>`;
   }
-  return `<svg viewBox="0 0 520 500" width="100%" style="max-width:430px;display:block;margin:6px auto 0;">${g}</svg>`;
+  return `<svg viewBox="0 0 520 500" width="100%" style="max-width:300px;display:block;margin:4px auto 0;">${g}</svg>`;
 }
 
 function coverPage(meta, S, L, gen) {

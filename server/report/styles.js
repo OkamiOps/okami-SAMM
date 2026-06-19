@@ -24,7 +24,7 @@ html,body{ margin:0; padding:0; background:#0a0a0f; }
 body{ counter-reset:pg; -webkit-print-color-adjust:exact; print-color-adjust:exact; font-family:var(--ok-display); }
 
 .sheet{
-  position:relative; width:210mm; min-height:297mm; background:var(--doc-paper); color:var(--doc-ink);
+  position:relative; width:210mm; height:297mm; background:var(--doc-paper); color:var(--doc-ink);
   overflow:hidden; counter-increment:pg; display:flex; flex-direction:column;
   break-after:page; page-break-after:always; margin:0 auto;
 }

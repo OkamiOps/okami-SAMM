@@ -4,19 +4,62 @@
 
 > 🌐 [English](README.md) · **Português (Brasil)**
 
-Aplicação de **avaliação de maturidade OWASP SAMM v2** da Okami — 5 funções de
-negócio, 15 práticas, 90 perguntas (PT/EN). Importada do Claude Design e
-empacotada como app web publicável, com **persistência em SQLite**, **relatório
-PDF com a identidade visual Okami** e **sugestões de IA opcionais**.
+**Avaliação de maturidade de segurança OWASP SAMM v2** da Okami — meça a
+maturidade do ciclo de desenvolvimento seguro em **5 funções de negócio · 15
+práticas · 90 perguntas** (inglês/português), visualize o scorecard, planeje o
+roadmap e exporte um relatório PDF com a identidade visual da Okami.
 
-## Stack
+<p align="center">
+  <img src="docs/images/app-scorecard.png" alt="Okami SAMM — scorecard com radar de maturidade" width="860">
+</p>
 
-- **Frontend** — app standalone (`public/`), runtime React (dc-runtime) que boota sozinho. Mantém um rascunho em `localStorage` e fala com a API via `public/app-bridge.js`. O React/ReactDOM são **embutidos** em `public/vendor/` (sem CDN em runtime) — o app renderiza mesmo offline / atrás de CSP / em preview restrito.
-- **Backend** — Node + Express + `better-sqlite3`.
-- **PDF** — Playwright (Chromium headless) renderiza um HTML que reproduz o template "OKAMI · Security Assessment Report".
-- **IA (opcional)** — proxy multi-provider; o botão de IA só aparece se houver chave configurada.
+---
 
-## Rodar local
+## ✨ Funcionalidades
+
+- **Avaliação guiada** — 90 perguntas do OWASP SAMM v2 em dois streams (A/B), níveis 1–3, com notas de entrevista por pergunta.
+- **Scorecard ao vivo** — maturidade geral, scores por função e por prática, radar de maturidade e KPIs de práticas na meta.
+- **Roadmap** — nível atual, lacuna até a meta e próximo nível a conquistar para cada prática, com sugestões opcionais personalizadas por IA.
+- **Histórico & comparativo** — salve snapshots e acompanhe a evolução da maturidade ao longo do tempo.
+- **Persistência em SQLite** — salve avaliações de clientes no servidor, liste, recarregue e re-emita relatórios.
+- **PDF Okami** — relatório de 9 páginas (capa, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas).
+- **Bilíngue** — UI e relatórios completos em inglês/português.
+- **Self-contained** — o React é embutido localmente; o app renderiza mesmo offline / atrás de CSP.
+
+---
+
+## 📸 Capturas de tela
+
+|  |  |
+|---|---|
+| ![Início & escopo](docs/images/app-setup.png) | ![Roadmap & próximos passos](docs/images/app-roadmap.png) |
+| **Início & escopo** — defina o cliente/equipe e leia o modelo SAMM. | **Roadmap** — lacunas, próximo nível e ações por prática. |
+
+---
+
+## 📄 O relatório PDF
+
+Documento de 9 páginas seguindo a identidade visual "OKAMI · Security Assessment
+Report" (Space Grotesk, papel branco-frio, acentos de marca por função):
+
+| | |
+|---|---|
+| ![Capa](docs/images/pdf-cover.png) | ![Resumo executivo](docs/images/pdf-exec.png) |
+| **Capa** — dark, gradientes de marca, metadados do escopo. | **01 Resumo executivo** — métricas, barras por função, radar. |
+| ![Metodologia](docs/images/pdf-methodology.png) | ![Roadmap](docs/images/pdf-roadmap.png) |
+| **02 Metodologia** — as 5 funções, scoring, níveis 0–3. | **04 Roadmap** — práticas prioritárias com ações recomendadas. |
+
+Estrutura completa:
+
+1. **Capa** (dark, gradientes de marca)
+2. **01 Resumo executivo** — métricas, barras por função, radar de maturidade
+3. **02 Metodologia** — as 5 funções, como o score é calculado, níveis 0–3
+4. **03 Maturidade por função** — tabelas por prática com análise de destaque/atenção
+5. **04 Roadmap — Próximos passos** — práticas prioritárias com **ações recomendadas** derivadas dos critérios/guidance do SAMM (sem precisar de IA)
+
+---
+
+## 🚀 Início rápido
 
 ```bash
 npm install
@@ -27,7 +70,32 @@ npm start                            # http://localhost:3000
 
 Sem chave de IA o app funciona normalmente — apenas as sugestões de IA do Roadmap ficam ocultas.
 
-## API
+```bash
+npm test    # tests/offline-render.js — o app deve renderizar com o CDN bloqueado
+```
+
+---
+
+## 🧩 Como funciona
+
+```
+            Cloudflare Pages                         Container (Render/Railway/Fly/VPS)
+┌─────────────────────────────────┐        ┌──────────────────────────────────────────┐
+│  public/  (app SAMM estático)    │        │  Express                                   │
+│  • React embutido (sem CDN)      │        │  • /api/assessments  → better-sqlite3      │
+│  • app-bridge.js  ──────────────────┐     │  • /api/report.pdf   → Playwright/Chromium │
+│  functions/api/[[path]].js  ──proxy─┼────▶│  • /api/ai/suggest   → OpenAI/Anthropic    │
+└─────────────────────────────────┘   /api/*└──────────────────────────────────────────┘
+```
+
+- **Frontend** — o app standalone do Design Canvas (`public/`); o React (dc-runtime) boota sozinho. Mantém um rascunho em `localStorage` e fala com a API via `public/app-bridge.js`. O React/ReactDOM são **embutidos** em `public/vendor/` (sem CDN em runtime).
+- **Backend** — Node + Express + `better-sqlite3`. O scoring (`server/score.js`) espelha o frontend para o servidor montar relatórios a partir do estado salvo.
+- **PDF** — Playwright (Chromium headless) renderiza `server/report/render.js` num PDF A4.
+- **IA (opcional)** — proxy multi-provider; o botão de IA só aparece se houver chave configurada.
+
+---
+
+## 🔌 API
 
 | Método | Rota | Função |
 |---|---|---|
@@ -45,30 +113,17 @@ Sem chave de IA o app funciona normalmente — apenas as sugestões de IA do Roa
 | POST | `/api/ai/suggest` | proxy IA (`{ messages }`); 503 se desabilitado |
 
 O `state` é o estado completo do app (`meta`, `answers`, `notes`, `targets`,
-`snapshots`, `lang`). O servidor recalcula o scoring (`server/score.js`) para
-denormalizar `overall_score` e montar o relatório.
+`snapshots`, `lang`).
 
-## Uso no app
+### Barra de ações no app
 
-A barra flutuante (canto inferior direito) tem:
+A barra flutuante (canto inferior direito) tem **☁ Salvar** (cria/atualiza no
+servidor), **📂 Carregar** (lista e restaura) e **📄 Relatório PDF** (PDF Okami da
+avaliação atual). O botão **PDF** do topo também produz o relatório Okami.
 
-- **☁ Salvar** — grava/atualiza a avaliação atual no servidor (SQLite).
-- **📂 Carregar** — lista as avaliações salvas; abrir restaura o estado.
-- **📄 Relatório PDF** — gera o PDF Okami da avaliação atual.
+---
 
-O botão **PDF** do topo também produz o relatório Okami (não mais o jsPDF antigo).
-
-## O relatório PDF
-
-Documento de 9 páginas seguindo a identidade visual Okami:
-
-1. **Capa** (dark, gradientes de marca)
-2. **01 Resumo executivo** — métricas, barras por função, radar de maturidade
-3. **02 Metodologia** — as 5 funções, como o score é calculado, níveis 0–3
-4. **03 Maturidade por função** — tabelas por prática com análise de destaque/atenção
-5. **04 Roadmap — Próximos passos** — práticas prioritárias com **ações recomendadas** derivadas dos critérios/guidance do SAMM (sem precisar de IA)
-
-## IA (multi-provider, opcional)
+## 🤖 IA (multi-provider, opcional)
 
 As sugestões do Roadmap funcionam com qualquer provider configurável por env
 (`server/ai.js`). O botão de IA só aparece quando há chave.
@@ -83,22 +138,24 @@ As sugestões do Roadmap funcionam com qualquer provider configurável por env
 `AI_API_KEY` é a chave do provider escolhido. (OAuth delegado por usuário —
 OpenAI/Minimax — é um item futuro; hoje a config é por chave + URL custom.)
 
-## Banco de dados
+---
 
-SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente,
-modo WAL). Tabelas: `assessments` e `snapshots` (ver `server/db.js`).
+## 🗄️ Banco de dados
 
-## Publicar — Cloudflare Pages (frontend) + container (backend)
+SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente, modo
+WAL). Tabelas: `assessments` e `snapshots` (ver `server/db.js`).
 
-Arquitetura escolhida: **frontend estático na Cloudflare Pages** + **backend Node
-(API + PDF) num container** atrás do CDN da Cloudflare. O Pages serve `public/` e
-um Pages Function (`functions/api/[[path]].js`) faz proxy de `/api/*` para o
-backend — mesma origem, sem CORS.
+---
 
-### 1. Backend (container)
+## ☁️ Deploy — Cloudflare Pages (frontend) + container (backend)
 
-Qualquer host com Docker (Render / Railway / Fly.io / VPS). A imagem já inclui o
-Chromium do Playwright; o volume `/data` persiste o SQLite.
+Frontend estático na **Cloudflare Pages** + backend Node (API + PDF) num
+**container** atrás do CDN da Cloudflare. O Pages serve `public/` e um Pages
+Function (`functions/api/[[path]].js`) faz proxy de `/api/*` para o backend —
+mesma origem, sem CORS.
+
+**1. Backend (container).** Qualquer host com Docker (Render / Railway / Fly.io /
+VPS). A imagem já inclui o Chromium do Playwright; o volume `/data` persiste o SQLite.
 
 ```bash
 docker build -t okami-samm .
@@ -107,46 +164,44 @@ docker run -p 3000:3000 -v okami_samm_data:/data \
   okami-samm
 ```
 
-No Render há um blueprint pronto (`render.yaml`) — basta apontar para o repo. Ao
-final você terá uma URL, ex.: `https://okami-samm.onrender.com`.
+No Render há um blueprint pronto (`render.yaml`). Ao final você terá uma URL, ex.:
+`https://okami-samm.onrender.com`.
 
-### 2. Frontend (Cloudflare Pages)
-
-```bash
-npx wrangler pages deploy            # usa wrangler.toml (output dir = public/)
-```
-
-Depois aponte o proxy para o backend (variável do projeto Pages):
+**2. Frontend (Cloudflare Pages).**
 
 ```bash
-npx wrangler pages secret put BACKEND_URL   # = https://okami-samm.onrender.com
+npx wrangler pages deploy                    # usa wrangler.toml (output dir = public/)
+npx wrangler pages secret put BACKEND_URL    # = https://okami-samm.onrender.com
 ```
 
-Ou pelo dashboard do Pages: **Settings → Variables → BACKEND_URL**. Pronto — o
-site na Pages serve o app e encaminha `/api/*` (incl. o PDF) para o container.
+Ou defina `BACKEND_URL` em **Pages → Settings → Variables**.
 
-> Alternativa sem Cloudflare: o próprio container já serve o frontend em `/`
-> (Express + `public/`), então `docker run` sozinho é um deploy completo.
+> Alternativa sem Cloudflare: o próprio container serve o frontend em `/`, então
+> `docker run` sozinho é um deploy completo.
 
-## Testes
+---
 
-```bash
-npm test    # tests/offline-render.js — o app deve renderizar com o CDN bloqueado
-```
-
-## Estrutura
+## 📁 Estrutura
 
 ```
 server/    Express, SQLite, scoring, proxy de IA e geração de PDF
   data/samm.json     modelo OWASP SAMM (extraído do app)
   report/            render.js (HTML Okami) + pdf.js (Playwright) + styles.js + fonts.css
 public/    app SAMM standalone + app-bridge.js + vendor/ (React)
+functions/ Cloudflare Pages Function (proxy /api/*)
+tests/     teste de regressão offline-render
+docs/      spec de design + screenshots
 data/      banco SQLite (gitignored)
-docs/      spec de design
 ```
 
-## Origem
+---
+
+## 📦 Origem
 
 Importado de `Projeto Avaliação OWASP SAMM.zip` (Claude Design, projeto
 `d202c418-...`). O código React/dc-runtime do app não foi reescrito — apenas
 empacotado e estendido pela ponte (`app-bridge.js`) e pelo backend.
+
+## Licença
+
+Proprietário — © Okami. Todos os direitos reservados.

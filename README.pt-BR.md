@@ -22,7 +22,7 @@ roadmap e exporte um relatório PDF com a identidade visual da Okami.
 - **Roadmap** — nível atual, lacuna até a meta e próximo nível a conquistar para cada prática, com sugestões opcionais personalizadas por IA.
 - **Histórico & comparativo** — salve snapshots e acompanhe a evolução da maturidade ao longo do tempo.
 - **Persistência em SQLite** — salve avaliações de clientes no servidor, liste, recarregue e re-emita relatórios.
-- **PDF Okami** — relatório de 9 páginas (capa, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas).
+- **PDF Okami** — relatório multipágina: capa, sumário, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas, evolução da maturidade (quando há snapshots), conclusão e apêndice de notas da avaliação.
 - **Bilíngue** — UI e relatórios completos em inglês/português.
 - **Self-contained** — o React é embutido localmente; o app renderiza mesmo offline / atrás de CSP.
 
@@ -49,13 +49,16 @@ Report" (Space Grotesk, papel branco-frio, acentos de marca por função):
 | ![Metodologia](docs/images/pdf-methodology.png) | ![Roadmap](docs/images/pdf-roadmap.png) |
 | **02 Metodologia** — as 5 funções, scoring, níveis 0–3. | **04 Roadmap** — práticas prioritárias com ações recomendadas. |
 
-Estrutura completa:
+Estrutura completa (as seções se adaptam aos dados — evolução e apêndice aparecem só quando fazem sentido):
 
-1. **Capa** (dark, gradientes de marca)
-2. **01 Resumo executivo** — métricas, barras por função, radar de maturidade
-3. **02 Metodologia** — as 5 funções, como o score é calculado, níveis 0–3
-4. **03 Maturidade por função** — tabelas por prática com análise de destaque/atenção
-5. **04 Roadmap — Próximos passos** — práticas prioritárias com **ações recomendadas** derivadas dos critérios/guidance do SAMM (sem precisar de IA)
+- **Capa** (dark, gradientes de marca) + **Sumário** (com números de página)
+- **01 Resumo executivo** — métricas, barras por função, radar de maturidade
+- **02 Metodologia** — as 5 funções, como o score é calculado, níveis 0–3
+- **03 Maturidade por função** — tabelas por prática com análise de destaque/atenção
+- **04 Roadmap — Próximos passos** — práticas prioritárias com **ações recomendadas** derivadas dos critérios/guidance do SAMM (sem precisar de IA)
+- **05 Evolução da maturidade** — tendência geral entre snapshots (quando há ≥1 snapshot)
+- **06 Conclusão** — interpretação, prioridades imediatas e recomendação
+- **Apêndice** — notas de entrevista por prática (quando há notas)
 
 ---
 

@@ -22,7 +22,7 @@ export a polished, Okami-branded PDF report.
 - **Roadmap** — current level, gap to target and the next level to reach for every practice, with optional AI-tailored suggestions.
 - **History & compare** — save snapshots and track maturity evolution over time.
 - **SQLite persistence** — save client assessments on the server, list them, reload and re-report.
-- **Okami-branded PDF** — a 9-page report (cover, executive summary, methodology, per-function findings, prioritized roadmap with concrete actions).
+- **Okami-branded PDF** — a multi-page report: cover, contents, executive summary, methodology, per-function findings, prioritized roadmap with concrete actions, maturity evolution (when snapshots exist), conclusion and an assessment-notes appendix.
 - **Bilingual** — full English/Portuguese UI and reports.
 - **Self-contained** — React is vendored locally; the app renders even offline / behind CSP.
 
@@ -49,13 +49,16 @@ identity (Space Grotesk, cool-white paper, per-function brand accents):
 | ![Methodology](docs/images/pdf-methodology.png) | ![Roadmap](docs/images/pdf-roadmap.png) |
 | **02 Methodology** — the 5 functions, scoring, levels 0–3. | **04 Roadmap** — priority practices with recommended actions. |
 
-Full structure:
+Full structure (sections adapt to the data — evolution and appendix appear only when relevant):
 
-1. **Cover** (dark, brand gradients)
-2. **01 Executive summary** — metrics, by-function bars, maturity radar
-3. **02 Methodology** — the 5 functions, how the score is computed, levels 0–3
-4. **03 Maturity by function** — per-practice tables with strength/attention analysis
-5. **04 Roadmap — Next steps** — priority practices with **recommended actions** derived from the SAMM criteria/guidance (no AI required)
+- **Cover** (dark, brand gradients) + **Contents** (with page numbers)
+- **01 Executive summary** — metrics, by-function bars, maturity radar
+- **02 Methodology** — the 5 functions, how the score is computed, levels 0–3
+- **03 Maturity by function** — per-practice tables with strength/attention analysis
+- **04 Roadmap — Next steps** — priority practices with **recommended actions** derived from the SAMM criteria/guidance (no AI required)
+- **05 Maturity evolution** — overall trend across saved snapshots (when ≥1 snapshot)
+- **06 Conclusion** — interpretation, immediate priorities and a recommendation
+- **Appendix** — interview notes by practice (when notes were taken)
 
 ---
 

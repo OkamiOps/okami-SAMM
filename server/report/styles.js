@@ -125,4 +125,19 @@ body{ counter-reset:pg; -webkit-print-color-adjust:exact; print-color-adjust:exa
 .doc-table td.num{ font-family:var(--ok-mono); text-align:right; font-variant-numeric:tabular-nums; color:var(--doc-ink); }
 .tag{ font-family:var(--ok-mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border:1px solid currentColor; border-radius:2px; display:inline-block; }
 .tag.t-cyan{ color:var(--doc-cyan); } .tag.t-mag{ color:var(--doc-magenta); } .tag.t-ok{ color:var(--doc-success); } .tag.t-org{ color:var(--doc-orange); }
+
+/* table of contents */
+.toc{ margin:6px 0; }
+.toc-item{ display:grid; grid-template-columns:34px 1fr auto; align-items:baseline; gap:12px; padding:12px 0; border-bottom:1px solid var(--doc-line-soft); }
+.toc-item .tn{ font-family:var(--ok-mono); font-size:12px; color:var(--doc-struct); letter-spacing:.06em; }
+.toc-item .tt{ font-family:var(--ok-display); font-size:15px; color:var(--doc-ink); font-weight:500; }
+.toc-item .tt small{ display:block; font-family:var(--ok-mono); font-weight:400; font-size:9.5px; letter-spacing:.08em; color:var(--doc-ink-mute); text-transform:uppercase; margin-top:3px; }
+.toc-item .tp{ font-family:var(--ok-mono); font-size:12px; color:var(--doc-ink-mute); }
+
+/* ordered list */
+ol.doc-ol{ margin:4px 0 16px; padding-left:0; list-style:none; counter-reset:ol; }
+ol.doc-ol li{ position:relative; padding:6px 0 6px 30px; font-size:13px; line-height:1.55; color:var(--doc-ink-soft); counter-increment:ol; }
+ol.doc-ol li::before{ content:counter(ol, decimal-leading-zero); position:absolute; left:0; top:6px; font-family:var(--ok-mono); font-size:11px; color:var(--doc-struct); }
+.sheet p{ font-size:13px; line-height:1.7; color:var(--doc-ink-soft); margin:0 0 12px; max-width:72ch; }
+.sheet p strong{ color:var(--doc-ink); font-weight:600; }
 `;

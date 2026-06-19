@@ -1,0 +1,29 @@
+# Render Blueprint — backend container (API + SQLite + Okami PDF).
+# Render reads the Dockerfile, builds it (Chromium included) and runs it.
+# Railway / Fly.io work the same way from the same Dockerfile.
+services:
+  - type: web
+    name: okami-samm-api
+    runtime: docker
+    plan: starter            # PDF needs RAM for Chromium; starter (512MB) is the minimum
+    healthCheckPath: /healthz
+    disk:
+      name: okami-samm-data  # persistent volume for the SQLite DB
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DB_PATH
+        value: /data/okami-samm.db
+      - key: CORS_ORIGIN          # the Pages URL, if the frontend calls the API directly
+        sync: false
+      # --- AI (optional) ---
+      - key: AI_PROVIDER          # openai | anthropic
+        sync: false
+      - key: AI_BASE_URL          # custom endpoint (Minimax / proxy / Anthropic custom URL)
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false

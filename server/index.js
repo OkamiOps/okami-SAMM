@@ -11,6 +11,23 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '4mb' }));
 
+// CORS — same-origin when served behind the Cloudflare Pages proxy, but allow a
+// configurable origin (CORS_ORIGIN, comma-separated or "*") when the frontend
+// calls the backend directly.
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '';
+if (CORS_ORIGIN) {
+  const allow = CORS_ORIGIN.split(',').map((s) => s.trim());
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (CORS_ORIGIN === '*') res.setHeader('Access-Control-Allow-Origin', '*');
+    else if (origin && allow.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
+}
+
 const slug = (s) => String(s || 'assessment').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'assessment';
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
   console.error(e);
@@ -80,7 +97,7 @@ app.post('/api/report/preview.pdf', wrap(async (req, res) => {
 
 // ---- AI proxy (optional) ----
 app.post('/api/ai/suggest', wrap(async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI disabled' });
+  if (!ai.isEnabled()) return res.status(503).json({ error: 'AI disabled' });
   const messages = (req.body && req.body.messages) || [];
   if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'missing messages' });
   try {

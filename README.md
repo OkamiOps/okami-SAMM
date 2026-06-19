@@ -60,17 +60,60 @@ O botão **PDF** do topo também produz o relatório Okami (não mais o jsPDF an
 SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente,
 modo WAL). Tabelas: `assessments` e `snapshots` (ver `server/db.js`).
 
-## Publicar (Docker)
+## IA (multi-provider, opcional)
+
+As sugestões do Roadmap funcionam com qualquer provider configurável por env
+(`server/ai.js`). O botão de IA só aparece quando há chave.
+
+| Provider | Variáveis |
+|---|---|
+| OpenAI | `AI_PROVIDER=openai` · `AI_MODEL=gpt-4o-mini` |
+| Minimax / OpenAI-compatível | `AI_PROVIDER=openai` · `AI_BASE_URL=https://.../v1` · `AI_MODEL=...` |
+| Anthropic | `AI_PROVIDER=anthropic` · `AI_MODEL=claude-sonnet-4-6` |
+| Anthropic com URL custom | `AI_PROVIDER=anthropic` · `AI_BASE_URL=https://seu-proxy/anthropic` |
+
+`AI_API_KEY` é a chave do provider escolhido. (OAuth delegado por usuário —
+OpenAI/Minimax — é um item futuro; hoje a config é por chave + URL custom.)
+
+## Publicar — Cloudflare Pages (frontend) + container (backend)
+
+Arquitetura escolhida: **frontend estático na Cloudflare Pages** + **backend Node
+(API + PDF) num container** atrás do CDN da Cloudflare. O Pages serve `public/` e
+um Pages Function (`functions/api/[[path]].js`) faz proxy de `/api/*` para o
+backend — mesma origem, sem CORS.
+
+### 1. Backend (container)
+
+Qualquer host com Docker (Render / Railway / Fly.io / VPS). A imagem já inclui o
+Chromium do Playwright; o volume `/data` persiste o SQLite.
 
 ```bash
 docker build -t okami-samm .
 docker run -p 3000:3000 -v okami_samm_data:/data \
-  -e ANTHROPIC_API_KEY=sk-ant-...   # opcional
+  -e AI_PROVIDER=openai -e AI_API_KEY=...   # opcional
   okami-samm
 ```
 
-A imagem já inclui o Chromium do Playwright. O volume `/data` persiste o SQLite.
-Funciona em qualquer host com Docker (Render, Railway, Fly.io, VPS).
+No Render há um blueprint pronto (`render.yaml`) — basta apontar para o repo. Ao
+final você terá uma URL, ex.: `https://okami-samm.onrender.com`.
+
+### 2. Frontend (Cloudflare Pages)
+
+```bash
+npx wrangler pages deploy            # usa wrangler.toml (output dir = public/)
+```
+
+Depois aponte o proxy para o backend (variável do projeto Pages):
+
+```bash
+npx wrangler pages secret put BACKEND_URL   # = https://okami-samm.onrender.com
+```
+
+Ou pelo dashboard do Pages: **Settings → Variables → BACKEND_URL**. Pronto — o
+site na Pages serve o app e encaminha `/api/*` (incl. o PDF) para o container.
+
+> Alternativa sem Cloudflare: o próprio container já serve o frontend em `/`
+> (Express + `public/`), então `docker run` sozinho é um deploy completo.
 
 ## Estrutura
 

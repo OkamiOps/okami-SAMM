@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "test": "node tests/offline-render.js",
     "postinstall": "node -e \"try{require('playwright').chromium}catch(e){}\"",
     "browser": "playwright install chromium"
   },

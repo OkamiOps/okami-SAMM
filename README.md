@@ -7,7 +7,7 @@ visual Okami** e **sugestões de IA opcionais**.
 
 ## Stack
 
-- **Frontend** — app standalone (`public/`), runtime React (dc-runtime) que boota sozinho. Mantém um rascunho em `localStorage` e fala com a API via `public/app-bridge.js`.
+- **Frontend** — app standalone (`public/`), runtime React (dc-runtime) que boota sozinho. Mantém um rascunho em `localStorage` e fala com a API via `public/app-bridge.js`. O React/ReactDOM são **embutidos** em `public/vendor/` (sem CDN em runtime) — o app renderiza mesmo offline / atrás de CSP / em preview restrito.
 - **Backend** — Node + Express + `better-sqlite3`.
 - **PDF** — Playwright (Chromium headless) renderiza um HTML que reproduz o template "OKAMI · Security Assessment Report".
 - **IA (opcional)** — proxy para a API Anthropic; o botão de IA só aparece se houver `ANTHROPIC_API_KEY`.

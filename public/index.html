@@ -696,7 +696,7 @@ class Component extends DCLogic {
     this.state = this.load();
   }
   defaults(){
-    return { lang:(this.props.defaultLang||'pt'), screen:'setup', started:false,
+    return { lang:(this.props.defaultLang||'en'), screen:'setup', started:false,
       meta:{org:'',team:'',date:'',lead:'',contrib:''}, answers:{}, notes:{}, targets:{},
       activeFnIdx:0, activePracticeIdx:0, snapshots:[], compareId:null, showTarget:true, showCompare:false, ai:{}, viewLevels:{}, cmpA:'', cmpB:'cur' };
   }

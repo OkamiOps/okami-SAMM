@@ -1,133 +1,152 @@
+<!-- Language: **English** · [Português](README.pt-BR.md) -->
+
 # Okami SAMM
 
-Aplicação de **avaliação de maturidade OWASP SAMM v2** da Okami — 5 funções, 15
-práticas, 90 perguntas (PT/EN). Importada do Claude Design e empacotada como app
-web publicável, com **persistência em SQLite**, **relatório PDF com a identidade
-visual Okami** e **sugestões de IA opcionais**.
+> 🌐 **English** · [Português (Brasil)](README.pt-BR.md)
+
+Okami's **OWASP SAMM v2 maturity assessment** app — 5 business functions, 15
+practices, 90 questions (PT/EN). Imported from Claude Design and packaged as a
+publishable web app, with **SQLite persistence**, **Okami-branded PDF reports**
+and **optional AI suggestions**.
 
 ## Stack
 
-- **Frontend** — app standalone (`public/`), runtime React (dc-runtime) que boota sozinho. Mantém um rascunho em `localStorage` e fala com a API via `public/app-bridge.js`. O React/ReactDOM são **embutidos** em `public/vendor/` (sem CDN em runtime) — o app renderiza mesmo offline / atrás de CSP / em preview restrito.
+- **Frontend** — standalone app (`public/`), React (dc-runtime) that boots on its own. Keeps a draft in `localStorage` and talks to the API through `public/app-bridge.js`. React/ReactDOM are **vendored** in `public/vendor/` (no runtime CDN) — the app renders even offline / behind CSP / in a restricted preview.
 - **Backend** — Node + Express + `better-sqlite3`.
-- **PDF** — Playwright (Chromium headless) renderiza um HTML que reproduz o template "OKAMI · Security Assessment Report".
-- **IA (opcional)** — proxy para a API Anthropic; o botão de IA só aparece se houver `ANTHROPIC_API_KEY`.
+- **PDF** — Playwright (headless Chromium) renders an HTML that reproduces the "OKAMI · Security Assessment Report" template.
+- **AI (optional)** — multi-provider proxy; the AI button only shows when a key is configured.
 
-## Rodar local
+## Run locally
 
 ```bash
 npm install
-npx playwright install chromium      # baixa o Chromium (uma vez), p/ o PDF
-cp .env.example .env                 # ajuste a porta / chave de IA se quiser
+npx playwright install chromium      # downloads Chromium once, for the PDF
+cp .env.example .env                 # adjust port / AI key if you want
 npm start                            # http://localhost:3000
 ```
 
-Sem `ANTHROPIC_API_KEY` o app funciona normalmente — apenas as sugestões de IA do
-Roadmap ficam ocultas.
+Without an AI key the app works normally — only the Roadmap's AI suggestions stay hidden.
 
 ## API
 
-| Método | Rota | Função |
+| Method | Route | Purpose |
 |---|---|---|
 | GET | `/healthz` | health check |
-| GET | `/api/config` | `{ aiEnabled, version }` |
-| GET | `/api/assessments` | lista avaliações salvas |
-| POST | `/api/assessments` | cria (`{ state }`) → avaliação |
-| GET | `/api/assessments/:id` | estado completo |
-| PUT | `/api/assessments/:id` | atualiza (`{ state }`) |
-| DELETE | `/api/assessments/:id` | remove |
-| GET | `/api/assessments/:id/snapshots` | lista snapshots |
-| POST | `/api/assessments/:id/snapshots` | grava snapshot (`{ state, label }`) |
-| GET | `/api/assessments/:id/report.pdf` | PDF Okami da avaliação |
-| POST | `/api/report/preview.pdf` | PDF de um `state` cru (sem salvar) |
-| POST | `/api/ai/suggest` | proxy IA (`{ messages }`); 503 se desabilitado |
+| GET | `/api/config` | `{ aiEnabled, aiProvider, version }` |
+| GET | `/api/assessments` | list saved assessments |
+| POST | `/api/assessments` | create (`{ state }`) → assessment |
+| GET | `/api/assessments/:id` | full state |
+| PUT | `/api/assessments/:id` | update (`{ state }`) |
+| DELETE | `/api/assessments/:id` | delete |
+| GET | `/api/assessments/:id/snapshots` | list snapshots |
+| POST | `/api/assessments/:id/snapshots` | save snapshot (`{ state, label }`) |
+| GET | `/api/assessments/:id/report.pdf` | Okami PDF of the assessment |
+| POST | `/api/report/preview.pdf` | PDF from a raw `state` (without saving) |
+| POST | `/api/ai/suggest` | AI proxy (`{ messages }`); 503 when disabled |
 
-O `state` é o estado completo do app (`meta`, `answers`, `notes`, `targets`,
-`snapshots`, `lang`). O servidor recalcula o scoring (`server/score.js`) para
-denormalizar `overall_score` e montar o relatório.
+`state` is the app's full state (`meta`, `answers`, `notes`, `targets`,
+`snapshots`, `lang`). The server recomputes scoring (`server/score.js`) to
+denormalize `overall_score` and build the report.
 
-## Uso no app
+## In-app usage
 
-A barra flutuante (canto inferior direito) tem:
+The floating toolbar (bottom-right) has:
 
-- **☁ Salvar** — grava/atualiza a avaliação atual no servidor (SQLite).
-- **📂 Carregar** — lista as avaliações salvas; abrir restaura o estado.
-- **📄 Relatório PDF** — gera o PDF Okami da avaliação atual.
+- **☁ Save** — creates/updates the current assessment on the server (SQLite).
+- **📂 Load** — lists saved assessments; opening one restores the state.
+- **📄 PDF report** — generates the Okami PDF of the current assessment.
 
-O botão **PDF** do topo também produz o relatório Okami (não mais o jsPDF antigo).
+The top **PDF** button also produces the Okami report (no longer the old jsPDF one).
 
-## Banco de dados
+## The PDF report
 
-SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente,
-modo WAL). Tabelas: `assessments` e `snapshots` (ver `server/db.js`).
+A 9-page document following the Okami visual identity:
 
-## IA (multi-provider, opcional)
+1. **Cover** (dark, brand gradients)
+2. **01 Executive summary** — metrics, by-function bars, maturity radar
+3. **02 Methodology** — the 5 functions, how the score is computed, levels 0–3
+4. **03 Maturity by function** — per-practice tables with strength/attention analysis
+5. **04 Roadmap — Next steps** — priority practices with **recommended actions** derived from the SAMM criteria/guidance (no AI required)
 
-As sugestões do Roadmap funcionam com qualquer provider configurável por env
-(`server/ai.js`). O botão de IA só aparece quando há chave.
+## AI (multi-provider, optional)
 
-| Provider | Variáveis |
+The Roadmap suggestions work with any provider configured via env
+(`server/ai.js`). The AI button only appears when a key is present.
+
+| Provider | Variables |
 |---|---|
 | OpenAI | `AI_PROVIDER=openai` · `AI_MODEL=gpt-4o-mini` |
-| Minimax / OpenAI-compatível | `AI_PROVIDER=openai` · `AI_BASE_URL=https://.../v1` · `AI_MODEL=...` |
+| Minimax / OpenAI-compatible | `AI_PROVIDER=openai` · `AI_BASE_URL=https://.../v1` · `AI_MODEL=...` |
 | Anthropic | `AI_PROVIDER=anthropic` · `AI_MODEL=claude-sonnet-4-6` |
-| Anthropic com URL custom | `AI_PROVIDER=anthropic` · `AI_BASE_URL=https://seu-proxy/anthropic` |
+| Anthropic with custom URL | `AI_PROVIDER=anthropic` · `AI_BASE_URL=https://your-proxy/anthropic` |
 
-`AI_API_KEY` é a chave do provider escolhido. (OAuth delegado por usuário —
-OpenAI/Minimax — é um item futuro; hoje a config é por chave + URL custom.)
+`AI_API_KEY` is the chosen provider's key. (User-delegated OAuth — OpenAI/Minimax
+— is a future item; today the config is key + custom URL.)
 
-## Publicar — Cloudflare Pages (frontend) + container (backend)
+## Database
 
-Arquitetura escolhida: **frontend estático na Cloudflare Pages** + **backend Node
-(API + PDF) num container** atrás do CDN da Cloudflare. O Pages serve `public/` e
-um Pages Function (`functions/api/[[path]].js`) faz proxy de `/api/*` para o
-backend — mesma origem, sem CORS.
+SQLite at `DB_PATH` (default `./data/okami-samm.db`, created automatically, WAL
+mode). Tables: `assessments` and `snapshots` (see `server/db.js`).
+
+## Publish — Cloudflare Pages (frontend) + container (backend)
+
+Chosen architecture: **static frontend on Cloudflare Pages** + **Node backend
+(API + PDF) in a container** behind Cloudflare's CDN. Pages serves `public/` and
+a Pages Function (`functions/api/[[path]].js`) proxies `/api/*` to the backend —
+same-origin, no CORS.
 
 ### 1. Backend (container)
 
-Qualquer host com Docker (Render / Railway / Fly.io / VPS). A imagem já inclui o
-Chromium do Playwright; o volume `/data` persiste o SQLite.
+Any Docker host (Render / Railway / Fly.io / VPS). The image already bundles
+Playwright's Chromium; the `/data` volume persists SQLite.
 
 ```bash
 docker build -t okami-samm .
 docker run -p 3000:3000 -v okami_samm_data:/data \
-  -e AI_PROVIDER=openai -e AI_API_KEY=...   # opcional
+  -e AI_PROVIDER=openai -e AI_API_KEY=...   # optional
   okami-samm
 ```
 
-No Render há um blueprint pronto (`render.yaml`) — basta apontar para o repo. Ao
-final você terá uma URL, ex.: `https://okami-samm.onrender.com`.
+Render has a ready blueprint (`render.yaml`) — just point it at the repo. You end
+up with a URL, e.g. `https://okami-samm.onrender.com`.
 
 ### 2. Frontend (Cloudflare Pages)
 
 ```bash
-npx wrangler pages deploy            # usa wrangler.toml (output dir = public/)
+npx wrangler pages deploy            # uses wrangler.toml (output dir = public/)
 ```
 
-Depois aponte o proxy para o backend (variável do projeto Pages):
+Then point the proxy at the backend (a Pages project variable):
 
 ```bash
 npx wrangler pages secret put BACKEND_URL   # = https://okami-samm.onrender.com
 ```
 
-Ou pelo dashboard do Pages: **Settings → Variables → BACKEND_URL**. Pronto — o
-site na Pages serve o app e encaminha `/api/*` (incl. o PDF) para o container.
+Or via the Pages dashboard: **Settings → Variables → BACKEND_URL**. Done — the
+Pages site serves the app and forwards `/api/*` (PDF included) to the container.
 
-> Alternativa sem Cloudflare: o próprio container já serve o frontend em `/`
-> (Express + `public/`), então `docker run` sozinho é um deploy completo.
+> No-Cloudflare alternative: the container itself already serves the frontend at
+> `/` (Express + `public/`), so `docker run` alone is a complete deploy.
 
-## Estrutura
+## Tests
 
-```
-server/    Express, SQLite, scoring, proxy de IA e geração de PDF
-  data/samm.json     modelo OWASP SAMM (extraído do app)
-  report/            render.js (HTML Okami) + pdf.js (Playwright) + styles.js + fonts.css
-public/    app SAMM standalone + app-bridge.js
-data/      banco SQLite (gitignored)
-docs/      spec de design
+```bash
+npm test    # tests/offline-render.js — the app must render with the CDN blocked
 ```
 
-## Origem
+## Structure
 
-Importado de `Projeto Avaliação OWASP SAMM.zip` (Claude Design, projeto
-`d202c418-...`). O código React/dc-runtime do app não foi reescrito — apenas
-empacotado e estendido pela ponte (`app-bridge.js`) e pelo backend.
+```
+server/    Express, SQLite, scoring, AI proxy and PDF generation
+  data/samm.json     OWASP SAMM model (extracted from the app)
+  report/            render.js (Okami HTML) + pdf.js (Playwright) + styles.js + fonts.css
+public/    standalone SAMM app + app-bridge.js + vendor/ (React)
+data/      SQLite database (gitignored)
+docs/      design spec
+```
+
+## Origin
+
+Imported from `Projeto Avaliação OWASP SAMM.zip` (Claude Design, project
+`d202c418-...`). The app's React/dc-runtime code was not rewritten — only
+packaged and extended through the bridge (`app-bridge.js`) and the backend.

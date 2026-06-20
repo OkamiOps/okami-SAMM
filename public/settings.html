@@ -56,17 +56,19 @@
         <select class="ok-input" id="auth"><option value="api_key">API key</option><option value="oauth">OAuth token</option></select></div>
     </div>
     <div class="note" id="authNote"></div>
-    <div class="row">
-      <div><label class="ok-label">API style</label><select class="ok-input" id="provider"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic</option></select></div>
-      <div><label class="ok-label">Model</label>
-        <div class="modelrow">
-          <select class="ok-input" id="model"></select>
-          <button class="ok-ghost sm" id="loadModels" title="Load models from the provider">↻</button>
-        </div>
-        <input class="ok-input" id="modelCustom" placeholder="model id" style="display:none;margin-top:8px;">
-      </div>
+    <label class="ok-label">Model</label>
+    <div class="modelrow">
+      <select class="ok-input" id="model"></select>
+      <button class="ok-ghost sm" id="loadModels" title="Load models from the provider">↻</button>
     </div>
-    <label class="ok-label">Base URL</label><input class="ok-input" id="baseUrl" placeholder="https://api.openai.com/v1">
+    <input class="ok-input" id="modelCustom" placeholder="model id" style="display:none;margin-top:8px;">
+    <!-- API style + Base URL only matter for a custom endpoint; named providers are fixed -->
+    <div id="customFields" style="display:none;">
+      <label class="ok-label">API style</label>
+      <select class="ok-input" id="provider"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic</option></select>
+      <label class="ok-label">Base URL</label>
+      <input class="ok-input" id="baseUrl" placeholder="https://your-endpoint/v1">
+    </div>
     <label class="ok-label" id="keyLabel">API key <span id="keyHint" style="text-transform:none;letter-spacing:0;color:var(--ok-fg-mute);"></span></label>
     <input class="ok-input" id="apiKey" type="password" placeholder="paste a new key/token to change">
     <!-- embedded OAuth device-code login -->
@@ -165,6 +167,7 @@
   function applyAuthUI() {
     var p = $('preset').value, m = $('auth').value;
     var note = $('authNote');
+    $('customFields').style.display = (p === 'custom') ? 'block' : 'none';  // API style + Base URL only for custom
     var oauthKey = PRESET_OAUTH_KEY[p];
     var embedded = m === 'oauth' && oauthKey && OAUTH_LOGIN.indexOf(oauthKey) !== -1;
     stopPoll(); $('oauthBox').style.display = 'none';
@@ -182,7 +185,7 @@
       $('oauthDisconnect').style.display = connected ? 'inline-flex' : 'none';
     } else if (m === 'oauth') { var info = OAUTH[p] || OAUTH.custom; text = info.msg; color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
     if (text) { note.textContent = text; note.style.display = 'block'; note.style.color = color; note.style.borderLeftColor = color; }
-    else { note.style.display = 'none'; }
+    else { note.textContent = ''; note.style.display = 'none'; }
   }
 
   function stopPoll() { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } }

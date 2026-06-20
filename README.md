@@ -175,14 +175,16 @@ preset (OpenAI / Grok / Minimax / Anthropic / custom), choose **API key** or
 credential and **Test connection**. Env vars (below) still work as a fallback. The
 key is stored in the DB and never returned raw by the API (masked on read).
 
-**Sign in with your subscription (no API cost):** for **Grok (xAI)** the Settings
-page has an embedded **device-code login** — click *Sign in with Grok*, open the
-shown URL, enter the code, and the server stores and auto-refreshes the token. No
-API key, no external gateway, nothing to install. (Minimax and OpenAI/Codex use the
-same device-code mechanism and are being added.) **Anthropic** is intentionally not
-offered for subscription login — their Terms forbid using Pro/Max OAuth tokens
-outside Claude Code/Claude.ai (account-ban risk); use an API key. Each provider's
-guidance is shown inline in Settings.
+**Sign in with your subscription (no API cost):** **Grok (xAI)** and **Minimax**
+have an embedded **device-code login** in Settings — click *Sign in with …*, open
+the shown URL, enter the code, and the server stores + auto-refreshes the token. No
+API key, no external gateway, nothing to install (validated against the real
+providers). **OpenAI/Codex** does not allow the device-code grant (its login is a
+localhost loopback and its token targets the ChatGPT backend) — use an API key.
+**Anthropic** is intentionally not offered for subscription login — their Terms
+forbid using Pro/Max OAuth tokens outside Claude Code/Claude.ai (account-ban risk);
+use an API key. Each provider's guidance is shown inline in Settings, and API
+style / Base URL only appear for the **Custom** provider.
 
 Retention (auto-purge old assessments) and user management also live in Settings.
 

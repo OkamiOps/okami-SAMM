@@ -26,11 +26,15 @@ function resolveConfig() {
   }
   const baseUrl = s('ai_base_url') || process.env.AI_BASE_URL || '';
   const model = s('ai_model') || process.env.AI_MODEL || '';
+  const authHeader = s('ai_auth_header') || 'x-api-key';
+  if (provider === 'openai-responses') { // OpenAI/Codex subscription via the ChatGPT Responses backend
+    return { provider, key, baseUrl: (baseUrl || 'https://chatgpt.com/backend-api/codex').replace(/\/+$/, ''), model: model || 'gpt-5', authHeader: 'bearer' };
+  }
   if (provider === 'anthropic') {
-    return { provider, key, baseUrl: (baseUrl || 'https://api.anthropic.com').replace(/\/+$/, ''), model: model || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6' };
+    return { provider, key, baseUrl: (baseUrl || 'https://api.anthropic.com').replace(/\/+$/, ''), model: model || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', authHeader };
   }
   if (provider === 'openai') {
-    return { provider, key, baseUrl: (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, ''), model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini' };
+    return { provider, key, baseUrl: (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, ''), model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini', authHeader: 'bearer' };
   }
   return { provider: null, key: null };
 }
@@ -70,14 +74,32 @@ async function callAnthropic(cfg, messages) {
   const { system, turns } = splitMessages(messages);
   const body = { model: cfg.model, max_tokens: 1500, messages: turns };
   if (system) body.system = system;
-  const res = await fetch(`${cfg.baseUrl}/v1/messages`, {
+  // API keys use x-api-key; OAuth tokens (e.g. Minimax /anthropic) use Bearer.
+  const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' };
+  if (cfg.authHeader === 'bearer') headers.authorization = 'Bearer ' + cfg.key;
+  else headers['x-api-key'] = cfg.key;
+  const res = await fetch(`${cfg.baseUrl}/v1/messages`, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!res.ok) throw upstream(res.status, await res.text().catch(() => ''));
+  const data = await res.json();
+  return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+}
+
+// OpenAI/Codex ChatGPT subscription backend (Responses API). Best-effort: the
+// Roadmap's text suggestions work; tool-calling (ACP NL) is not wired here.
+async function callCodexResponses(cfg, messages) {
+  const { system, turns } = splitMessages(messages);
+  const input = turns.map((m) => m.content).join('\n');
+  const body = { model: cfg.model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: false };
+  const res = await fetch(`${cfg.baseUrl}/responses`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key, originator: 'okami-samm', 'openai-beta': 'responses=experimental' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw upstream(res.status, await res.text().catch(() => ''));
   const data = await res.json();
-  return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+  if (data.output_text) return data.output_text;
+  const out = (data.output || []).flatMap((o) => (o.content || [])).filter((c) => c.type === 'output_text' || c.text).map((c) => c.text).join('');
+  return out;
 }
 
 function upstream(status, detail) {
@@ -93,6 +115,7 @@ async function complete(messages) {
   await maybeRefresh();
   const cfg = resolveConfig();
   if (!cfg.provider || !cfg.key) { const e = new Error('AI disabled'); e.code = 'AI_DISABLED'; throw e; }
+  if (cfg.provider === 'openai-responses') return callCodexResponses(cfg, messages);
   return cfg.provider === 'anthropic' ? callAnthropic(cfg, messages) : callOpenAI(cfg, messages);
 }
 
@@ -103,6 +126,8 @@ async function runAgent({ system, userText, tools, execute, onStep, maxSteps = 8
   await maybeRefresh();
   const cfg = resolveConfig();
   if (!cfg.provider || !cfg.key) { const e = new Error('AI disabled'); e.code = 'AI_DISABLED'; throw e; }
+  // Codex Responses backend: tool-calling isn't wired — answer without tools.
+  if (cfg.provider === 'openai-responses') return callCodexResponses(cfg, [{ role: 'system', content: system }, { role: 'user', content: userText }]);
   return cfg.provider === 'anthropic'
     ? agentAnthropic(cfg, { system, userText, tools, execute, onStep, maxSteps })
     : agentOpenAI(cfg, { system, userText, tools, execute, onStep, maxSteps });

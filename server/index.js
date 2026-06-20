@@ -134,7 +134,7 @@ app.get('/api/settings', auth.requireAdmin, (req, res) => {
 app.put('/api/settings', auth.requireAdmin, wrap((req, res) => {
   const b = req.body || {};
   for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
-  const clearOAuth = () => { db.setSetting('ai_oauth_provider', ''); db.setSetting('ai_oauth_refresh', ''); db.setSetting('ai_oauth_expiry', ''); };
+  const clearOAuth = () => { db.setSetting('ai_oauth_provider', ''); db.setSetting('ai_oauth_refresh', ''); db.setSetting('ai_oauth_expiry', ''); db.setSetting('ai_auth_header', ''); };
   if (b.clear_api_key) { db.setSetting('ai_api_key', ''); clearOAuth(); }
   else if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) { db.setSetting('ai_api_key', b.ai_api_key.trim()); clearOAuth(); }  // manual key replaces any OAuth session
   if (b.retention_days != null) db.setSetting('retention_days', String(Math.max(0, parseInt(b.retention_days, 10) || 0)));
@@ -171,17 +171,17 @@ const oauthPending = new Map(); // userId -> { provider, device_code, expiresAt 
 app.post('/api/settings/oauth/start', auth.requireAdmin, wrap(async (req, res) => {
   const provider = (req.body || {}).provider;
   try {
-    const d = await oauth.startDevice(provider);
-    oauthPending.set(req.user.id, { provider, device_code: d.device_code, expiresAt: Date.now() + d.expires_in * 1000 });
-    res.json({ user_code: d.user_code, verification_uri: d.verification_uri, verification_uri_complete: d.verification_uri_complete, interval: d.interval, expires_in: d.expires_in });
+    const { display, ctx } = await oauth.startDevice(provider);
+    oauthPending.set(req.user.id, ctx);
+    res.json(display);
   } catch (e) { res.status(400).json({ error: e.message }); }
 }));
 app.post('/api/settings/oauth/poll', auth.requireAdmin, wrap(async (req, res) => {
-  const pend = oauthPending.get(req.user.id);
-  if (!pend) return res.status(400).json({ error: 'no pending login — start again' });
-  if (Date.now() > pend.expiresAt) { oauthPending.delete(req.user.id); return res.status(400).json({ error: 'login expired — start again' }); }
+  const ctx = oauthPending.get(req.user.id);
+  if (!ctx) return res.status(400).json({ error: 'no pending login — start again' });
+  if (Date.now() > ctx.expiresAt) { oauthPending.delete(req.user.id); return res.status(400).json({ error: 'login expired — start again' }); }
   try {
-    const r = await oauth.pollDevice(pend.provider, pend.device_code);
+    const r = await oauth.pollDevice(ctx);
     if (r.ok) { oauthPending.delete(req.user.id); return res.json({ status: 'done' }); }
     res.json({ status: 'pending' });
   } catch (e) { oauthPending.delete(req.user.id); res.status(400).json({ error: e.message }); }

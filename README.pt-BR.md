@@ -123,7 +123,11 @@ npm run admin -- reset                             # apaga usuários → próxim
 
 ## 🔌 API
 
-Todas as rotas exceto `/healthz`, `/api/config` e `/api/auth/*` exigem
+**Docs interativa:** Swagger UI em **`/docs`** (auto-hospedado, sem CDN) — clique
+*Authorize*, cole seu token de API e teste qualquer endpoint. O spec OpenAPI 3
+fica em **`/api/openapi.json`**.
+
+Todas as rotas exceto `/healthz`, `/api/config`, `/api/auth/*` e a docs exigem
 autenticação — **cookie de sessão** (web) ou **token de API** por usuário (agentes):
 `Authorization: Bearer <token>` ou `X-API-Key: <token>`.
 

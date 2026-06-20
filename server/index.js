@@ -39,6 +39,18 @@ const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
 app.get('/healthz', (req, res) => res.json({ ok: true }));
 app.get('/api/config', (req, res) => res.json(Object.assign({ authEnabled: true, needsSetup: db.countUsers() === 0 }, publicConfig())));
 
+// ---- API docs: OpenAPI spec + Swagger UI (public, self-hosted, no CDN) ----
+app.get('/api/openapi.json', (req, res) => res.json(require('./openapi').spec()));
+app.use('/docs/static', express.static(require('swagger-ui-dist').getAbsoluteFSPath()));
+app.get('/docs', (req, res) => res.type('html').send(`<!doctype html><html><head><meta charset="utf-8">
+<title>Okami SAMM — API docs</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/docs/static/swagger-ui.css">
+<style>body{margin:0;background:#fff}.topbar{display:none}</style></head><body>
+<div id="swagger"></div>
+<script src="/docs/static/swagger-ui-bundle.js"></script>
+<script>window.onload=function(){SwaggerUIBundle({url:'/api/openapi.json',dom_id:'#swagger',deepLinking:true,persistAuthorization:true,presets:[SwaggerUIBundle.presets.apis]});};</script>
+</body></html>`));
+
 // ---- auth (public endpoints) ----
 const auth = require('./auth');
 

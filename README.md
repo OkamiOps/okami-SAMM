@@ -123,7 +123,11 @@ npm run admin -- reset                                 # wipe users → next sta
 
 ## 🔌 API
 
-All routes except `/healthz`, `/api/config` and `/api/auth/*` require
+**Interactive docs:** Swagger UI at **`/docs`** (self-hosted, no CDN) — click
+*Authorize*, paste your API token and try any endpoint. The OpenAPI 3 spec is at
+**`/api/openapi.json`**.
+
+All routes except `/healthz`, `/api/config`, `/api/auth/*` and the docs require
 authentication — a **session cookie** (web) or a per-user **API token** (agents):
 `Authorization: Bearer <token>` or `X-API-Key: <token>`.
 

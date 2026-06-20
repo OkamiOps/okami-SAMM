@@ -10,9 +10,11 @@ const { createAdminSession } = require('./helpers');
 
 const PORT = 3099;
 
+const DB = '/tmp/okami-samm-offline-test.db';
 function startServer() {
+  require('fs').rmSync(DB, { force: true });
   const proc = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore',
+    env: { ...process.env, PORT: String(PORT), DB_PATH: DB }, stdio: 'ignore',
   });
   return proc;
 }

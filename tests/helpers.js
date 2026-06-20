@@ -2,9 +2,10 @@
 const { spawn } = require('child_process');
 
 function startServer(port, extraEnv = {}) {
-  const proc = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PORT: String(port), ...extraEnv }, stdio: 'ignore',
-  });
+  const env = { ...process.env, PORT: String(port), ...extraEnv };
+  // Safety net: tests must never touch the real DB. Default to a temp file.
+  if (!env.DB_PATH) env.DB_PATH = `/tmp/okami-samm-test-${port}.db`;
+  const proc = spawn(process.execPath, ['server/index.js'], { env, stdio: 'ignore' });
   return proc;
 }
 

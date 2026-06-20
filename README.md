@@ -112,6 +112,15 @@ authenticate with a **per-user API token** (shown in `/api/auth/me`, rotate via
 `POST /api/auth/token`). No accounts on a public cloud required — it's all in your
 SQLite DB.
 
+**Locked out / recovery** — manage users from the terminal (no login needed):
+
+```bash
+npm run admin -- list
+npm run admin -- create-admin <username> <password>   # create or reset an admin
+npm run admin -- set-password <username> <password>
+npm run admin -- reset                                 # wipe users → next start shows "Create admin"
+```
+
 ## 🔌 API
 
 All routes except `/healthz`, `/api/config` and `/api/auth/*` require

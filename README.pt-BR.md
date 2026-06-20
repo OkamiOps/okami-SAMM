@@ -112,6 +112,15 @@ agentes (MCP/ACP) autenticam com um **token de API por usuário** (visível em
 `/api/auth/me`, rotacione via `POST /api/auth/token`). Sem contas em nuvem
 pública — fica tudo no seu SQLite.
 
+**Trancado pra fora / recuperação** — gerencie usuários pelo terminal (sem login):
+
+```bash
+npm run admin -- list
+npm run admin -- create-admin <usuario> <senha>   # cria ou reseta um admin
+npm run admin -- set-password <usuario> <senha>
+npm run admin -- reset                             # apaga usuários → próximo start mostra "Create admin"
+```
+
 ## 🔌 API
 
 Todas as rotas exceto `/healthz`, `/api/config` e `/api/auth/*` exigem

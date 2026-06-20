@@ -24,7 +24,7 @@ async function readDisplayedOverall(page) {
 }
 
 (async () => {
-  const server = startServer(PORT);
+  const server = startServer(PORT, { DB_PATH: '/tmp/okami-samm-scoring-test.db' });
   let failed = false;
   try {
     await waitForServer(`http://localhost:${PORT}/healthz`);

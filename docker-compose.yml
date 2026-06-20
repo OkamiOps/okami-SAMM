@@ -1,0 +1,23 @@
+# Self-host the whole app (frontend + API + PDF + SQLite) with one command:
+#   docker compose up -d        →  http://localhost:3000
+#
+# Your data lives in ./data/okami-samm.db — back it up by copying that folder,
+# or via the in-app "⤓ Backup" button (Load dialog) / GET /api/backup.
+services:
+  okami-samm:
+    build: .
+    image: okami-samm
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      DB_PATH: /data/okami-samm.db
+      # If this instance is reachable from the internet, put it behind a reverse
+      # proxy with auth / a VPN — or ask to enable the optional single-password gate.
+      # --- optional: AI suggestions (OpenAI / Minimax / Anthropic) ---
+      # AI_PROVIDER: openai
+      # AI_BASE_URL: ""
+      # AI_API_KEY: ""
+      # AI_MODEL: gpt-4o-mini
+    restart: unless-stopped

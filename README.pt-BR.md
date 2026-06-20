@@ -113,6 +113,8 @@ npm test    # tests/offline-render.js — o app deve renderizar com o CDN bloque
 | POST | `/api/assessments/:id/snapshots` | grava snapshot (`{ state, label }`) |
 | GET | `/api/assessments/:id/report.pdf` | PDF Okami da avaliação |
 | POST | `/api/report/preview.pdf` | PDF a partir de um `state` cru (sem salvar) |
+| GET | `/api/backup` | baixa um backup JSON de **todas** as avaliações |
+| POST | `/api/restore` | restaura um backup (`{ assessments, mode: merge\|replace }`) |
 | POST | `/api/ai/suggest` | proxy IA (`{ messages }`); 503 se desabilitado |
 
 O `state` é o estado completo do app (`meta`, `answers`, `notes`, `targets`,
@@ -122,7 +124,9 @@ O `state` é o estado completo do app (`meta`, `answers`, `notes`, `targets`,
 
 A barra flutuante (canto inferior direito) tem **☁ Salvar** (cria/atualiza no
 servidor), **📂 Carregar** (lista e restaura) e **📄 Relatório PDF** (PDF Okami da
-avaliação atual). O botão **PDF** do topo também produz o relatório Okami.
+avaliação atual). O botão **PDF** do topo também produz o relatório Okami. O
+diálogo Carregar também tem **⤓ Backup** / **⤒ Restaurar** para exportar/importar
+todos os seus dados.
 
 ---
 
@@ -149,6 +153,20 @@ SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente, mod
 WAL). Tabelas: `assessments` e `snapshots` (ver `server/db.js`).
 
 ---
+
+## 🏠 Self-host (1 comando)
+
+O app inteiro (frontend + API + PDF + SQLite) roda de um único container:
+
+```bash
+docker compose up -d        # → http://localhost:3000
+```
+
+Seus dados ficam em **`./data/okami-samm.db`**. Faça backup copiando essa pasta,
+ou pelo botão **⤓ Backup** no app (diálogo Carregar) / `GET /api/backup`; restaure
+com **⤒ Restaurar** / `POST /api/restore`. Se expuser a instância na internet,
+coloque atrás de um proxy reverso com auth / VPN (dá pra adicionar um gate de
+senha única sob demanda).
 
 ## ☁️ Deploy — Cloudflare Pages (frontend) + container (backend)
 

@@ -99,7 +99,46 @@ const listSnapshots = (assessmentId) =>
   db.prepare(`SELECT id, assessment_id, label, overall_score, created_at
               FROM snapshots WHERE assessment_id=? ORDER BY created_at ASC`).all(assessmentId);
 
+// ---- full backup / restore (single-file portable history) ----
+const exportAll = () => {
+  const rows = db.prepare('SELECT * FROM assessments ORDER BY created_at ASC').all();
+  return {
+    app: 'okami-samm',
+    schema: 1,
+    exportedAt: now(),
+    count: rows.length,
+    assessments: rows.map((r) => ({
+      id: r.id, org: r.org, team: r.team, assess_date: r.assess_date, lead: r.lead,
+      contributors: r.contributors, lang: r.lang, overall_score: r.overall_score,
+      created_at: r.created_at, updated_at: r.updated_at, state: JSON.parse(r.state_json),
+    })),
+  };
+};
+
+// mode: 'merge' (upsert by id, default) | 'replace' (wipe then insert)
+const importAll = (data, mode = 'merge') => {
+  const list = (data && Array.isArray(data.assessments)) ? data.assessments : null;
+  if (!list) throw new Error('invalid backup: missing assessments[]');
+  const valid = list.filter((a) => a && a.id && a.state && typeof a.state === 'object');
+  const upsert = db.prepare(`INSERT OR REPLACE INTO assessments
+    (id, org, team, assess_date, lead, contributors, lang, overall_score, state_json, created_at, updated_at)
+    VALUES (@id,@org,@team,@assess_date,@lead,@contributors,@lang,@overall_score,@state_json,@created_at,@updated_at)`);
+  const tx = db.transaction((rows) => {
+    if (mode === 'replace') db.prepare('DELETE FROM assessments').run();
+    for (const a of rows) {
+      const meta = metaFrom(a.state);
+      upsert.run({
+        id: a.id, ...meta,
+        state_json: JSON.stringify(a.state),
+        created_at: a.created_at || now(), updated_at: a.updated_at || now(),
+      });
+    }
+  });
+  tx(valid);
+  return { imported: valid.length, skipped: list.length - valid.length, mode };
+};
+
 module.exports = {
   db, createAssessment, updateAssessment, getAssessment, listAssessments,
-  deleteAssessment, addSnapshot, listSnapshots,
+  deleteAssessment, addSnapshot, listSnapshots, exportAll, importAll,
 };

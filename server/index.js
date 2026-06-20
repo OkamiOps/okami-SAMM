@@ -65,6 +65,25 @@ app.delete('/api/assessments/:id', wrap((req, res) => {
   res.json({ deleted: db.deleteAssessment(req.params.id) });
 }));
 
+// ---- full backup / restore ----
+app.get('/api/backup', wrap((req, res) => {
+  const data = db.exportAll();
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="okami-samm-backup-${stamp}.json"`);
+  res.send(JSON.stringify(data, null, 2));
+}));
+
+app.post('/api/restore', wrap((req, res) => {
+  const body = req.body || {};
+  const mode = body.mode === 'replace' ? 'replace' : 'merge';
+  try {
+    res.json(db.importAll(body, mode));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+}));
+
 // ---- snapshots ----
 app.get('/api/assessments/:id/snapshots', wrap((req, res) => res.json(db.listSnapshots(req.params.id))));
 app.post('/api/assessments/:id/snapshots', wrap((req, res) => {

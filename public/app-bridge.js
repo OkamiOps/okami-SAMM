@@ -27,10 +27,10 @@
 
   function getState() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
   function setState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
-  function lang() { return (getState().lang === 'en') ? 'en' : 'pt'; }
+  function lang() { return (getState().lang === 'pt') ? 'pt' : 'en'; }
   var T = {
-    pt: { save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…' },
-    en: { save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…' },
+    pt: { save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restaurar', restored: function (n) { return n + ' avaliação(ões) restaurada(s)'; } },
+    en: { save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restore', restored: function (n) { return n + ' assessment(s) restored'; } },
   };
   function t(k) { return (T[lang()] || T.pt)[k]; }
 
@@ -84,13 +84,36 @@
         + '<span data-del="' + a.id + '" title="delete" style="font-size:11px;color:#74758a;justify-self:end;">✕</span>'
         + '</button>';
     }).join('') || '<div style="padding:24px 18px;color:#6c6d80;font-size:12px;">' + t('none') + '</div>';
+    var actBtn = 'cursor:pointer;background:transparent;border:1px solid #2a2b3a;color:#b9bac8;font:inherit;font-size:11px;padding:7px 12px;';
     box.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #1f1f2e;">'
       + '<b style="font-family:\'Space Grotesk\',sans-serif;letter-spacing:.1em;font-size:12px;">// ' + esc(t('pick')) + '</b>'
-      + '<span id="okmClose" style="cursor:pointer;color:#6c6d80;">✕</span></div>' + rows;
+      + '<span id="okmClose" style="cursor:pointer;color:#6c6d80;">✕</span></div>'
+      + '<div style="display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid #15151f;">'
+      + '<button id="okmExport" style="' + actBtn + '">' + esc(t('exportAll')) + '</button>'
+      + '<button id="okmImport" style="' + actBtn + '">' + esc(t('importAll')) + '</button>'
+      + '<input id="okmImportFile" type="file" accept="application/json" style="display:none;"></div>' + rows;
     ov.appendChild(box); document.body.appendChild(ov);
     var close = function () { ov.remove(); };
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
     box.querySelector('#okmClose').addEventListener('click', close);
+    // ---- backup (download all) ----
+    box.querySelector('#okmExport').addEventListener('click', function () {
+      var a = document.createElement('a'); a.href = '/api/backup'; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+    });
+    // ---- restore (upload JSON) ----
+    var fileEl = box.querySelector('#okmImportFile');
+    box.querySelector('#okmImport').addEventListener('click', function () { fileEl.click(); });
+    fileEl.addEventListener('change', async function () {
+      var f = fileEl.files && fileEl.files[0]; if (!f) return;
+      try {
+        var data = JSON.parse(await f.text());
+        var res = await fetch('/api/restore', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ assessments: data.assessments, mode: 'merge' }) });
+        if (!res.ok) throw new Error(res.status);
+        var r = await res.json();
+        toast(t('restored')(r.imported));
+        close(); openLoad();
+      } catch (e) { toast(t('err'), true); }
+    });
     box.querySelectorAll('button[data-id]').forEach(function (b) {
       b.addEventListener('click', async function (e) {
         var del = e.target.closest('[data-del]');

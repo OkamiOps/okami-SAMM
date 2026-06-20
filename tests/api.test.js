@@ -42,6 +42,11 @@ const PUT = (p, b) => ({ method: 'PUT', headers: { 'content-type': 'application/
     const snaps = await json(`/api/assessments/${id}/snapshots`);
     check('GET snapshots → 1', Array.isArray(snaps.body) && snaps.body.length === 1);
 
+    const backup = await json('/api/backup');
+    check('GET backup has our assessment', backup.body && Array.isArray(backup.body.assessments) && backup.body.assessments.some((a) => a.id === id));
+    const restore = await json('/api/restore', POST('', { assessments: backup.body.assessments, mode: 'merge' }));
+    check('POST restore merges', restore.status === 200 && restore.body.imported >= 1);
+
     const pdf = await fetch(`${base}/api/assessments/${id}/report.pdf`);
     const head = Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString('latin1');
     check('GET report.pdf → 200 %PDF', pdf.status === 200 && head.startsWith('%PDF'));

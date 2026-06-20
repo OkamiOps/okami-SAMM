@@ -171,39 +171,46 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
   const baseUrl = (b.ai_base_url || db.getSetting('ai_base_url') || (provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
   const key = (b.ai_api_key && b.ai_api_key.trim()) || db.getSetting('ai_api_key') || '';
   if (!key) return res.status(400).json({ error: 'enter an API key / token first' });
+  // Curated current model lists per OAuth provider — the safety net so the dropdown
+  // is NEVER empty when a provider's /models call fails. Live discovery runs first
+  // (below); these are only the fallback. Kept in sync with the Codex/Hermes lists.
+  const oauthProvider = db.getSetting('ai_oauth_provider') || '';
+  const CURATED = {
+    'openai-codex': ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-chat', 'gpt-5'],
+    xai: ['grok-4.3', 'grok-4.20-0309', 'grok-4-fast', 'grok-4', 'grok-code-fast-1', 'grok-3', 'grok-3-mini'],
+    minimax: ['MiniMax-M3', 'MiniMax-M2'],
+  };
   // ChatGPT/Codex backend: dot-versioned slugs (a dashed name like gpt-5-5 → 404).
-  // Trigger on the saved provider too — the UI sends the preset's API style ("openai"),
-  // but a Codex sign-in runs as "openai-responses". Curated current set (kept in sync
-  // with the Codex/Hermes model list) + best-effort live discovery from the backend.
+  // It has no standard /models — best-effort live discovery, then the curated set.
   if (provider === 'openai-responses' || savedProvider === 'openai-responses') {
-    const curated = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-chat', 'gpt-5'];
     try {
       const accountId = db.getSetting('ai_account_id') || '';
-      const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 3000); // never hang the dropdown
+      const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 3000);
       const r = await fetch('https://chatgpt.com/backend-api/models', { headers: { authorization: 'Bearer ' + key, 'chatgpt-account-id': accountId, originator: 'codex_cli_rs', accept: 'application/json' }, signal: ac.signal }).finally(() => clearTimeout(t));
       if (r.ok) {
         const d = await r.json().catch(() => ({}));
         const live = (d.models || d.data || []).map((m) => m.slug || m.id || m.name).filter((x) => /^gpt-5\.\d/.test(x || ''));
-        if (live.length) return res.json({ models: Array.from(new Set(live.concat(curated))) });
+        if (live.length) return res.json({ models: Array.from(new Set(live.concat(CURATED['openai-codex']))) });
       }
     } catch (_) {}
-    return res.json({ models: curated });
+    return res.json({ models: CURATED['openai-codex'] });
   }
+  // Other providers: try the live /models, fall back to the active provider's curated
+  // list so the dropdown always has options (you can still type any id via "Other…").
+  const fallback = () => (CURATED[oauthProvider] ? res.json({ models: CURATED[oauthProvider], fallback: true }) : res.status(502).json({ error: 'could not list models — type the model id' }));
   try {
     const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';
-    // Respect the active auth header — Grok/Minimax OAuth tokens are Bearer even on
-    // the anthropic-shaped Minimax endpoint.
-    const authHeader = db.getSetting('ai_auth_header') || '';
+    const authHeader = db.getSetting('ai_auth_header') || ''; // Grok/Minimax OAuth = Bearer
     const headers = provider === 'anthropic'
       ? (authHeader === 'bearer' ? { authorization: 'Bearer ' + key, 'anthropic-version': '2023-06-01' } : { 'x-api-key': key, 'anthropic-version': '2023-06-01' })
       : { authorization: 'Bearer ' + key };
-    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 6000); // never hang the dropdown
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 6000);
     const r = await fetch(url, { headers, signal: ac.signal }).finally(() => clearTimeout(t));
-    if (!r.ok) return res.status(502).json({ error: `provider ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}` });
+    if (!r.ok) return fallback();
     const data = await r.json();
     const models = (data.data || data.models || []).map((m) => m.id || m.name).filter(Boolean).sort();
-    res.json({ models });
-  } catch (e) { res.status(502).json({ error: e.code === 'ABORT_ERR' || /abort/i.test(e.message) ? 'provider timed out listing models — type the model id' : e.message }); }
+    return models.length ? res.json({ models }) : fallback();
+  } catch (e) { return fallback(); }
 }));
 
 // ---- embedded OAuth (device-code) login — sign in with your subscription ----

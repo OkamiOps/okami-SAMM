@@ -155,7 +155,8 @@
   };
   var PRESET_OAUTH_KEY = { grok: 'xai', minimax: 'minimax', openai: 'openai-codex' };
   var PRESET_LABEL = { grok: 'Grok', minimax: 'Minimax', openai: 'OpenAI', anthropic: 'Anthropic', custom: 'Custom' };
-  var OAUTH_LOGIN = [];   // providers with embedded device-code login (from server)
+  var OAUTH_LOGIN = [];   // providers with embedded login (from server)
+  var OAUTH_VAULT = [];   // providers already signed in (persisted, switch w/o re-auth)
   var SET = {};           // last loaded settings
   var pollTimer = null;
   var $ = function (id) { return document.getElementById(id); };
@@ -187,13 +188,17 @@
 
     var text = '', color = 'var(--ok-cyan)';
     if (embedded) {
-      var connected = SET.ai_oauth_provider === oauthKey;
+      var inVault = OAUTH_VAULT.indexOf(oauthKey) !== -1;   // already signed in
+      var active = SET.ai_oauth_provider === oauthKey;       // currently in use
       var nm = PRESET_LABEL[p] || p;
-      var caveat = (oauthKey === 'openai-codex') ? ' ⚠ Codex uses a localhost loopback — the app must run on THIS machine (not remote/Docker), port 1455 free; the ChatGPT backend is experimental here.' : '';
-      text = (connected ? ('Signed in with your ' + nm + ' subscription — token auto-refreshes. No API cost.') : ('Sign in with your ' + nm + ' subscription (no API key, no API cost).')) + caveat;
-      $('oauthLogin').textContent = connected ? 'Re-sign in' : ('Sign in with ' + nm);
-      if (caveat) color = 'var(--ok-warning)';
-      $('oauthDisconnect').style.display = connected ? 'inline-flex' : 'none';
+      var caveat = (oauthKey === 'openai-codex') ? ' Codex: authorize, then paste the URL OpenAI gives you back here. The ChatGPT backend is experimental.' : '';
+      if (active) text = 'Signed in with your ' + nm + ' subscription (active) — token auto-refreshes. No API cost.';
+      else if (inVault) text = 'Already signed in with ' + nm + ' — click Save AI to switch to it (no re-auth).';
+      else text = 'Sign in with your ' + nm + ' subscription (no API key, no API cost).';
+      text += caveat;
+      $('oauthLogin').textContent = inVault ? 'Re-sign in' : ('Sign in with ' + nm);
+      if (caveat && !active) color = 'var(--ok-warning)';
+      $('oauthDisconnect').style.display = inVault ? 'inline-flex' : 'none';
     } else if (m === 'oauth') { var info = OAUTH[p] || OAUTH.custom; text = info.msg; color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
     if (text) { note.textContent = text; note.style.display = 'block'; note.style.color = color; note.style.borderLeftColor = color; }
     else { note.textContent = ''; note.style.display = 'none'; }
@@ -206,19 +211,20 @@
     var d = r.body;
     var url = d.authorize_url || d.verification_uri_complete || d.verification_uri;
     $('oauthUrl').textContent = url; $('oauthUrl').href = url;
-    if (d.authorize_url) {  // loopback (Codex): no code, authorize in the opened tab + paste-back fallback
-      $('oauthOpenLabel').textContent = 'A sign-in tab opened — authorize there, then return here.';
+    $('oauthBox').style.display = 'block';
+    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
+    if (d.authorize_url) {  // Codex: authorize in the opened tab, then paste the URL back — no polling
+      $('oauthOpenLabel').textContent = '1. Authorize in the tab that opened (or open the link)';
       $('oauthCodeWrap').style.display = 'none';
       $('oauthManual').style.display = 'block';
-    } else {
+      $('oauthStatus').textContent = '2. Then paste the URL OpenAI gives you below.'; $('oauthStatus').style.color = 'var(--ok-fg-mute)';
+    } else {                // device flow (Grok/Minimax): show code + poll
       $('oauthOpenLabel').textContent = '1. Open'; $('oauthCodeWrap').style.display = 'block';
       $('oauthManual').style.display = 'none';
       $('oauthCode').textContent = d.user_code || '';
+      $('oauthStatus').textContent = 'Waiting for authorization…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
+      poll(Math.max(2, d.interval || 5));
     }
-    $('oauthStatus').textContent = 'Waiting for authorization…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
-    $('oauthBox').style.display = 'block';
-    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
-    poll(Math.max(2, d.interval || 5));
   });
   function poll(interval) {
     stopPoll();
@@ -239,8 +245,9 @@
     else { $('oauthStatus').textContent = '✗ ' + (r.body.error || 'failed'); $('oauthStatus').style.color = 'var(--ok-warning)'; }
   });
   $('oauthDisconnect').addEventListener('click', async function () {
-    if (!confirm('Disconnect this OAuth login?')) return;
-    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ clear_api_key: true, ai_oauth_provider: '' }) });
+    var key = PRESET_OAUTH_KEY[$('preset').value];
+    if (!confirm('Disconnect this OAuth login? Other signed-in providers stay.')) return;
+    await api('/api/settings/oauth/disconnect', { method: 'POST', body: JSON.stringify({ provider: key }) });
     await loadSettings(); show($('aiMsg'), 'Disconnected.', true);
   });
 
@@ -256,7 +263,7 @@
 
   async function loadSettings() {
     var s = (await api('/api/settings')).body;
-    SET = s; OAUTH_LOGIN = s.oauth_login_providers || [];
+    SET = s; OAUTH_LOGIN = s.oauth_login_providers || []; OAUTH_VAULT = s.oauth_vault || [];
     var preset = s.ai_preset || 'openai';
     $('preset').value = preset;
     $('auth').value = s.ai_auth_method || 'api_key';

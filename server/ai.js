@@ -95,16 +95,18 @@ async function callCodexResponses(cfg, messages) {
   }
   const { system, turns } = splitMessages(messages);
   const input = turns.map((m) => m.content).join('\n');
-  // The ChatGPT/Codex backend streams (SSE) and gates on Codex-CLI-like headers:
-  // a non-codex `originator`/User-Agent or a missing chatgpt-account-id gets a 403.
-  const body = { model: cfg.model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: true };
+  // The ChatGPT/Codex backend accepts only gpt-5 / gpt-5-codex; map anything else.
+  const model = /codex/i.test(cfg.model || '') ? 'gpt-5-codex' : 'gpt-5';
+  // It streams (SSE) and gates on Codex-CLI-like headers — a non-codex `originator`
+  // or a missing chatgpt-account-id gets a 403. These are exactly the headers the
+  // official Codex flow sends (no custom User-Agent).
+  const body = { model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: true };
   const headers = {
     'content-type': 'application/json',
     accept: 'text/event-stream',
     authorization: 'Bearer ' + cfg.key,
     'openai-beta': 'responses=experimental',
     originator: 'codex_cli_rs',
-    'user-agent': 'codex_cli_rs/0.21.0 (okami-samm)',
     session_id: crypto.randomUUID(),
   };
   if (accountId) headers['chatgpt-account-id'] = accountId;

@@ -128,16 +128,32 @@ app.get('/api/settings', auth.requireAdmin, (req, res) => {
     ai_oauth_provider: db.getSetting('ai_oauth_provider') || null,
     ai_oauth_expiry: db.getSetting('ai_oauth_expiry') || null,
     oauth_login_providers: require('./oauth').available(),
+    oauth_vault: require('./oauth').vaultProviders(), // providers already signed in
     retention_days: Number(db.getSetting('retention_days') || 0),
   });
 });
 app.put('/api/settings', auth.requireAdmin, wrap((req, res) => {
   const b = req.body || {};
-  for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
-  const clearOAuth = () => { db.setSetting('ai_oauth_provider', ''); db.setSetting('ai_oauth_refresh', ''); db.setSetting('ai_oauth_expiry', ''); db.setSetting('ai_auth_header', ''); };
-  if (b.clear_api_key) { db.setSetting('ai_api_key', ''); clearOAuth(); }
-  else if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) { db.setSetting('ai_api_key', b.ai_api_key.trim()); clearOAuth(); }  // manual key replaces any OAuth session
+  const oauth = require('./oauth');
+  const clearActiveOAuth = () => { db.setSetting('ai_oauth_provider', ''); db.setSetting('ai_oauth_refresh', ''); db.setSetting('ai_oauth_expiry', ''); db.setSetting('ai_auth_header', ''); };
   if (b.retention_days != null) db.setSetting('retention_days', String(Math.max(0, parseInt(b.retention_days, 10) || 0)));
+  if (b.clear_api_key) { db.setSetting('ai_api_key', ''); clearActiveOAuth(); return res.json({ ok: true, ai_enabled: ai.isEnabled() }); }
+  if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) { // manual key → activate it (vault sessions stay)
+    for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
+    db.setSetting('ai_api_key', b.ai_api_key.trim()); clearActiveOAuth();
+    return res.json({ ok: true, ai_enabled: ai.isEnabled() });
+  }
+  if (b.ai_auth_method === 'oauth') { // switching to an OAuth provider — reuse the stored login
+    const key = oauth.providerForPreset(b.ai_preset);
+    if (key && oauth.activate(key)) { // already signed in → no re-auth
+      if (typeof b.ai_model === 'string' && b.ai_model.trim()) { db.setSetting('ai_model', b.ai_model.trim()); oauth.updateVaultModel(b.ai_model.trim()); }
+      return res.json({ ok: true, ai_enabled: ai.isEnabled() });
+    }
+    // not signed in yet — just remember the selection so the UI shows the sign-in button
+    db.setSetting('ai_preset', b.ai_preset || ''); db.setSetting('ai_auth_method', 'oauth'); clearActiveOAuth(); db.setSetting('ai_api_key', '');
+    return res.json({ ok: true, ai_enabled: ai.isEnabled() });
+  }
+  for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
   res.json({ ok: true, ai_enabled: ai.isEnabled() });
 }));
 app.post('/api/settings/test-ai', auth.requireAdmin, wrap(async (req, res) => {
@@ -155,11 +171,12 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
   const baseUrl = (b.ai_base_url || db.getSetting('ai_base_url') || (provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
   const key = (b.ai_api_key && b.ai_api_key.trim()) || db.getSetting('ai_api_key') || '';
   if (!key) return res.status(400).json({ error: 'enter an API key / token first' });
-  // The ChatGPT/Codex backend has no /models endpoint — return the known set.
+  // The ChatGPT/Codex backend accepts only gpt-5 and gpt-5-codex (Codex normalizes
+  // every other name to these). It has no /models endpoint — return the known set.
   // Trigger on the saved provider too: the UI sends the preset's API style ("openai"),
   // but a Codex sign-in actually runs as "openai-responses".
   if (provider === 'openai-responses' || savedProvider === 'openai-responses') {
-    return res.json({ models: ['gpt-5', 'gpt-5-codex', 'gpt-5-mini', 'o3', 'o4-mini', 'codex-mini-latest'] });
+    return res.json({ models: ['gpt-5', 'gpt-5-codex'] });
   }
   try {
     const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';
@@ -183,10 +200,15 @@ app.post('/api/settings/oauth/start', auth.requireAdmin, wrap(async (req, res) =
     res.json(display);
   } catch (e) { res.status(400).json({ error: e.message }); }
 }));
+app.post('/api/settings/oauth/disconnect', auth.requireAdmin, wrap((req, res) => {
+  const provider = (req.body || {}).provider || db.getSetting('ai_oauth_provider');
+  if (provider) oauth.disconnect(provider);
+  res.json({ ok: true });
+}));
 app.post('/api/settings/oauth/manual', auth.requireAdmin, wrap(async (req, res) => {
   const ctx = oauthPending.get(req.user.id);
   try {
-    await oauth.completeLoopbackManual(ctx, (req.body || {}).url);
+    await oauth.completeManual(ctx, (req.body || {}).url);
     oauthPending.delete(req.user.id);
     res.json({ status: 'done' });
   } catch (e) { res.status(400).json({ error: e.message }); }

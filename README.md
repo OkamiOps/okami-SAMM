@@ -179,13 +179,16 @@ key is stored in the DB and never returned raw by the API (masked on read).
 have an embedded **device-code login** in Settings — click *Sign in with …*, open
 the shown URL, enter the code, and the server stores + auto-refreshes the token. No
 API key, no external gateway, nothing to install (validated against the real
-providers). **OpenAI/Codex** uses a **localhost loopback** login (the device-code grant is
-rejected): *Sign in with OpenAI* opens auth.openai.com, the server catches the
-callback on `127.0.0.1:1455` — or, if that can't be reached (Codex's flow often
-shows a URL instead), **paste that URL/code back** into the field shown. The token
-targets the ChatGPT backend (Responses API). Loopback needs port 1455 free and
-works best with the app on the same machine as your browser; the backend path is
-experimental. If that doesn't fit, use an API key.
+providers). **OpenAI/Codex** uses the Codex authorize flow: *Sign in with OpenAI*
+opens auth.openai.com; after authorizing you **paste the URL OpenAI gives you back**
+into the field shown (works locally and remotely — no open port needed). Its token
+targets the ChatGPT backend via the Responses API, using only the `gpt-5` /
+`gpt-5-codex` models; the backend path is experimental.
+
+**Each login is remembered per provider.** Sign in to Grok, Minimax and OpenAI once
+and switch between them anytime from the provider dropdown + *Save AI* — no
+re-authentication. *Disconnect* forgets just that one; the others stay.
+
 **Anthropic** is intentionally not offered for subscription login — their Terms
 forbid using Pro/Max OAuth tokens outside Claude Code/Claude.ai (account-ban risk);
 use an API key. Each provider's guidance is shown inline in Settings, and API

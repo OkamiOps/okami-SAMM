@@ -179,14 +179,20 @@ chave fica no banco e nunca é retornada crua pela API (mascarada na leitura).
 **login device-code embutido** em Settings — clique *Sign in with …*, abra a URL
 mostrada, digite o código, e o servidor guarda + renova o token sozinho. Sem API
 key, sem gateway externo, nada pra instalar (validado contra os providers reais). O
-O **OpenAI/Codex** usa login **loopback em localhost** (o grant device-code é
-recusado): *Sign in with OpenAI* abre o auth.openai.com, o servidor captura o
-callback em `127.0.0.1:1455`, token no backend do ChatGPT (Responses API) — funciona
-**só com o app na mesma máquina do navegador** (não remoto/Docker), porta 1455 livre,
-backend experimental; senão, use API key. A **Anthropic** não
-é oferecida para login por assinatura de propósito — os Termos proíbem usar o token
-Pro/Max fora do Claude Code/Claude.ai (risco de ban); use API key. A orientação por
-provider aparece inline, e API style / Base URL só aparecem no provider **Custom**.
+**OpenAI/Codex** usa o fluxo authorize do Codex: *Sign in with OpenAI* abre o
+auth.openai.com; depois de autorizar você **cola de volta a URL que a OpenAI te dá**
+no campo mostrado (funciona local e remoto — sem porta aberta). O token vai pro
+backend do ChatGPT (Responses API), usando só os modelos `gpt-5` / `gpt-5-codex`;
+backend experimental.
+
+**Cada login fica salvo por provider.** Entre no Grok, Minimax e OpenAI uma vez e
+troque entre eles quando quiser pelo dropdown + *Save AI* — sem re-autenticar.
+*Disconnect* esquece só aquele; os outros ficam.
+
+A **Anthropic** não é oferecida para login por assinatura de propósito — os Termos
+proíbem usar o token Pro/Max fora do Claude Code/Claude.ai (risco de ban); use API
+key. A orientação por provider aparece inline, e API style / Base URL só aparecem no
+provider **Custom**.
 
 Retenção (purga automática de avaliações antigas) e gestão de usuários também
 ficam em Settings.

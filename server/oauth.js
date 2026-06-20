@@ -1,12 +1,16 @@
 'use strict';
-// Embedded OAuth (device-code) so users can sign in with a provider subscription
-// — no API key, no external gateway, nothing to install. The flows / client IDs
-// mirror the providers' official CLIs (validated against the real endpoints).
+// Embedded OAuth so users sign in with a provider subscription — no API key, no
+// external gateway, nothing to install. Each provider's flow / client ID mirrors
+// its official CLI (validated against the real endpoints).
+//
+// Per-provider vault: every successful login is stored separately (xai, minimax,
+// openai-codex) in the `oauth_vault` setting. Switching the active provider just
+// re-activates a stored session — you never re-authenticate a provider you already
+// signed into. The `ai_*` settings hold whichever session is currently active.
 //
 // Anthropic is intentionally absent: their Terms forbid using Pro/Max OAuth tokens
 // outside Claude Code / Claude.ai (account-ban risk) — use an API key for that.
 const crypto = require('crypto');
-const http = require('http');
 const db = require('./db');
 
 const PROVIDERS = {
@@ -29,13 +33,12 @@ const PROVIDERS = {
     grant: 'urn:ietf:params:oauth:grant-type:user_code',
     apiProvider: 'anthropic', apiBaseUrl: 'https://api.minimax.io/anthropic', authHeader: 'bearer',
   },
-  // OpenAI / Codex — Auth0 device flow; token used against the ChatGPT backend
-  // (chatgpt.com/backend-api/codex) via the Responses API.
-  // OpenAI / Codex — the device-code grant is rejected (403); Codex uses a
-  // localhost loopback (127.0.0.1:1455). Works ONLY when the app runs on the same
-  // machine as your browser. Token targets the ChatGPT backend (Responses API).
+  // OpenAI / Codex — PKCE authorize flow (auth.openai.com). The device-code grant is
+  // rejected, so we use the Codex redirect_uri and complete by pasting the returned
+  // URL/code back (works locally and remotely — no localhost server needed). Token
+  // targets the ChatGPT backend via the Responses API.
   'openai-codex': {
-    label: 'OpenAI (Codex)', flavor: 'loopback', preset: 'openai',
+    label: 'OpenAI (Codex)', flavor: 'paste', preset: 'openai',
     authorizeUrl: 'https://auth.openai.com/oauth/authorize',
     tokenUrl: 'https://auth.openai.com/oauth/token',
     redirectUri: 'http://localhost:1455/auth/callback',
@@ -44,6 +47,9 @@ const PROVIDERS = {
     apiProvider: 'openai-responses', apiBaseUrl: 'https://chatgpt.com/backend-api/codex', authHeader: 'bearer',
   },
 };
+
+const PRESET_TO_PROVIDER = { grok: 'xai', minimax: 'minimax', openai: 'openai-codex' };
+const providerForPreset = (preset) => PRESET_TO_PROVIDER[preset] || '';
 
 const formPost = async (url, body, extraHeaders) => {
   const r = await fetch(url, { method: 'POST', headers: Object.assign({ 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, extraHeaders || {}), body: new URLSearchParams(body).toString() });
@@ -55,13 +61,80 @@ const pkce = () => {
   const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
   return { verifier, challenge, state: crypto.randomBytes(16).toString('base64url') };
 };
+function decodeJwt(token) { try { return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8')); } catch (_) { return {}; } }
+// ChatGPT/Codex backend needs a `chatgpt-account-id` header; it lives in the token's
+// `https://api.openai.com/auth` claim (access_token, else id_token).
+function codexAccountId(tok) {
+  for (const t of [tok.access_token, tok.id_token]) {
+    const auth = (decodeJwt(t)['https://api.openai.com/auth']) || {};
+    if (auth.chatgpt_account_id) return auth.chatgpt_account_id;
+  }
+  return '';
+}
 
-// Returns { display:{user_code,verification_uri,verification_uri_complete,interval,expires_in}, ctx }
+// ---- per-provider vault ------------------------------------------------------
+function loadVault() { try { return JSON.parse(db.getSetting('oauth_vault') || '{}') || {}; } catch (_) { return {}; } }
+function saveVault(v) { db.setSetting('oauth_vault', JSON.stringify(v)); }
+function vaultGet(k) { return loadVault()[k] || null; }
+function vaultPut(k, s) { const v = loadVault(); v[k] = s; saveVault(v); }
+function vaultProviders() { return Object.keys(loadVault()); }
+function updateVaultModel(model) { const k = db.getSetting('ai_oauth_provider'); const v = loadVault(); if (k && v[k]) { v[k].model = model; saveVault(v); } }
+
+// Make a stored session the active AI config (no re-auth). Returns false if absent.
+function activate(providerKey) {
+  const s = vaultGet(providerKey); if (!s) return false;
+  db.setSetting('ai_api_key', s.token || '');
+  db.setSetting('ai_account_id', s.account_id || '');
+  db.setSetting('ai_oauth_provider', providerKey);
+  db.setSetting('ai_oauth_refresh', s.refresh || '');
+  db.setSetting('ai_oauth_expiry', s.expiry || '');
+  db.setSetting('ai_provider', s.provider);
+  db.setSetting('ai_base_url', s.base_url);
+  db.setSetting('ai_auth_header', s.auth_header || 'bearer');
+  db.setSetting('ai_preset', s.preset);
+  db.setSetting('ai_model', s.model || '');
+  db.setSetting('ai_auth_method', 'oauth');
+  return true;
+}
+// Forget one provider; if it was active, clear the active config (other logins stay).
+function disconnect(providerKey) {
+  const v = loadVault(); delete v[providerKey]; saveVault(v);
+  if (db.getSetting('ai_oauth_provider') === providerKey) {
+    ['ai_api_key', 'ai_account_id', 'ai_oauth_provider', 'ai_oauth_refresh', 'ai_oauth_expiry', 'ai_auth_header', 'ai_model'].forEach((x) => db.setSetting(x, ''));
+    db.setSetting('ai_auth_method', 'api_key');
+  }
+}
+function persistSession(providerKey, p, tok, expirySec) {
+  const existing = vaultGet(providerKey) || {};
+  vaultPut(providerKey, {
+    token: tok.access_token,
+    refresh: tok.refresh_token || existing.refresh || '',
+    expiry: new Date(Date.now() + Math.max(60, expirySec) * 1000).toISOString(),
+    account_id: p.apiProvider === 'openai-responses' ? codexAccountId(tok) : '',
+    provider: p.apiProvider, base_url: p.apiBaseUrl, auth_header: p.authHeader || 'bearer',
+    preset: p.preset, model: existing.model || '',
+  });
+  activate(providerKey);
+}
+function saveTokens(providerKey, p, tok) { persistSession(providerKey, p, tok, Number(tok.expires_in || 3600)); }
+function saveMinimax(providerKey, p, tok) {
+  const raw = Number(tok.expired_in || 0); const now = Date.now();
+  const sec = raw > now / 2 ? Math.round((raw - now) / 1000) : raw;
+  persistSession(providerKey, p, tok, Math.max(60, sec || 3600));
+}
+
+// ---- start a login -----------------------------------------------------------
+// Returns { display, ctx }. For 'paste' (Codex) the display has authorize_url and the
+// flow completes via completeManual(); for device flows the UI polls pollDevice().
 async function startDevice(providerKey) {
   const p = PROVIDERS[providerKey];
   if (!p) { const e = new Error('OAuth not available for ' + providerKey); e.code = 'NO_PROVIDER'; throw e; }
 
-  if (p.flavor === 'loopback') return startLoopback(providerKey);
+  if (p.flavor === 'paste') {
+    const k = pkce();
+    const authorize = p.authorizeUrl + '?' + new URLSearchParams({ response_type: 'code', client_id: p.clientId, redirect_uri: p.redirectUri, scope: p.scope, code_challenge: k.challenge, code_challenge_method: 'S256', state: k.state, id_token_add_organizations: 'true', codex_cli_simplified_flow: 'true', prompt: 'login' }).toString();
+    return { display: { authorize_url: authorize, expires_in: 600 }, ctx: { provider: providerKey, mode: 'paste', state: k.state, verifier: k.verifier, expiresAt: Date.now() + 600000 } };
+  }
 
   if (p.flavor === 'minimax') {
     const k = pkce();
@@ -75,7 +148,7 @@ async function startDevice(providerKey) {
     };
   }
 
-  // standard RFC 8628 device flow (xAI, OpenAI/Codex)
+  // standard RFC 8628 device flow (xAI)
   const { status, data } = await formPost(p.deviceUrl, { client_id: p.clientId, scope: p.scope });
   if (status >= 400 || !data.device_code) { const e = new Error('device init failed: ' + (data.error_description || data.error || status)); e.code = 'DEVICE_FAILED'; throw e; }
   return {
@@ -84,14 +157,8 @@ async function startDevice(providerKey) {
   };
 }
 
-// ---- loopback flow (OpenAI/Codex): localhost-only; binds 127.0.0.1:1455 ----
-// The PKCE state/verifier live in the per-user pending ctx (returned to the caller
-// and kept in oauthPending), NOT in this module — so the manual paste-back keeps
-// working regardless of the loopback HTTP server's lifecycle. The server below is
-// just a best-effort auto-capture; if it can't bind or never fires, paste-back wins.
-let lbServer = null;       // current http server (to free the port)
-let lbDone = false;        // auto-capture succeeded (token saved) → poll returns ok
-function closeLbServer() { if (lbServer) { try { lbServer.close(); } catch (_) {} lbServer = null; } }
+// Codex paste-back: the user pastes the URL OpenAI redirected them to (or just the
+// code). Uses the per-user pending ctx (state + verifier).
 function parseCodeState(input) {
   const raw = String(input || '').trim();
   if (!raw) throw new Error('paste the redirect URL (or code)');
@@ -103,60 +170,23 @@ function parseCodeState(input) {
   if (!code) throw new Error('no authorization code found in what you pasted');
   return { code, state };
 }
-async function exchangeCode(p, code, verifier) {
-  const { data } = await formPost(p.tokenUrl, { grant_type: 'authorization_code', code, redirect_uri: p.redirectUri, client_id: p.clientId, code_verifier: verifier });
+async function completeManual(ctx, input) {
+  if (!ctx || ctx.mode !== 'paste') throw new Error('no pending login — start the sign-in again');
+  const { code, state } = parseCodeState(input);
+  if (state && state !== ctx.state) throw new Error('state mismatch — start the sign-in again');
+  const p = PROVIDERS[ctx.provider];
+  const { data } = await formPost(p.tokenUrl, { grant_type: 'authorization_code', code, redirect_uri: p.redirectUri, client_id: p.clientId, code_verifier: ctx.verifier });
   if (!data.access_token) {
     const detail = typeof data.error_description === 'string' ? data.error_description : (typeof data.error === 'string' ? data.error : JSON.stringify(data).slice(0, 200));
     throw new Error('token exchange failed: ' + detail);
   }
-  return data;
-}
-async function startLoopback(providerKey) {
-  const p = PROVIDERS[providerKey];
-  closeLbServer();
-  lbDone = false;
-  const k = pkce();
-  // Best-effort auto-capture. Binding may fail (port busy) — that's fine, the user
-  // can still paste the URL back. Never tear down the pending ctx from here.
-  try {
-    await new Promise((resolve, reject) => {
-      const server = http.createServer(async (req, res) => {
-        try {
-          const u = new URL(req.url, 'http://localhost:1455');
-          if (u.pathname.indexOf('/auth/callback') !== 0) { res.writeHead(404); res.end(); return; }
-          const code = u.searchParams.get('code'); const state = u.searchParams.get('state');
-          if (!code || state !== k.state) { res.writeHead(400, { 'content-type': 'text/html' }); res.end('<h2>Login failed — paste the URL back in OKAMI instead.</h2>'); return; }
-          const data = await exchangeCode(p, code, k.verifier);
-          saveTokens(providerKey, p, data); lbDone = true;
-          res.writeHead(200, { 'content-type': 'text/html' }); res.end('<h2>Connected — close this tab and return to OKAMI.</h2>');
-          closeLbServer();
-        } catch (e) { try { res.writeHead(500, { 'content-type': 'text/html' }); res.end('<h2>' + e.message + ' — paste the URL back in OKAMI instead.</h2>'); } catch (_) {} }
-      });
-      server.on('error', reject);
-      server.listen(1455, '127.0.0.1', () => { lbServer = server; resolve(); });
-    });
-    setTimeout(closeLbServer, 600000);
-  } catch (_) { lbServer = null; } // port busy — paste-back path still works
-  const authorize = p.authorizeUrl + '?' + new URLSearchParams({ response_type: 'code', client_id: p.clientId, redirect_uri: p.redirectUri, scope: p.scope, code_challenge: k.challenge, code_challenge_method: 'S256', state: k.state, id_token_add_organizations: 'true', codex_cli_simplified_flow: 'true', prompt: 'login' }).toString();
-  return { display: { authorize_url: authorize, expires_in: 600 }, ctx: { provider: providerKey, mode: 'loopback', state: k.state, verifier: k.verifier, expiresAt: Date.now() + 600000 } };
-}
-// Manual completion: the user pastes the URL OpenAI gave them (the Codex
-// "simplified" flow shows it instead of hitting the loopback). Uses the per-user
-// pending ctx (state + verifier) — robust to the loopback server being gone.
-async function completeLoopbackManual(ctx, input) {
-  if (!ctx || ctx.mode !== 'loopback') throw new Error('no pending login — start the sign-in again');
-  const { code, state } = parseCodeState(input);
-  if (state && state !== ctx.state) throw new Error('state mismatch — start the sign-in again');
-  const p = PROVIDERS[ctx.provider];
-  const data = await exchangeCode(p, code, ctx.verifier);
   saveTokens(ctx.provider, p, data);
-  closeLbServer(); lbDone = true;
   return { ok: true };
 }
 
-// Poll once → { ok:true } (persists tokens) | { pending:true } | throws.
+// Poll once (device flows) → { ok } (persists) | { pending } | throws.
 async function pollDevice(ctx) {
-  if (ctx.mode === 'loopback') return lbDone ? { ok: true } : { pending: true };
+  if (ctx.mode === 'paste') return { pending: true }; // completed via paste, not polling
   const p = PROVIDERS[ctx.provider];
   if (p.flavor === 'minimax') {
     const { status, data } = await formPost(p.tokenUrl, { grant_type: p.grant, client_id: p.clientId, user_code: ctx.user_code, code_verifier: ctx.code_verifier });
@@ -171,51 +201,17 @@ async function pollDevice(ctx) {
   const e = new Error(data.error_description || err || 'token poll failed'); e.code = 'POLL_FAILED'; throw e;
 }
 
-function decodeJwt(token) { try { return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8')); } catch (_) { return {}; } }
-// The ChatGPT/Codex backend requires a `chatgpt-account-id` header; it lives in the
-// token's `https://api.openai.com/auth` claim (access_token, else id_token).
-function codexAccountId(tok) {
-  for (const t of [tok.access_token, tok.id_token]) {
-    const claims = decodeJwt(t); const auth = claims['https://api.openai.com/auth'] || {};
-    if (auth.chatgpt_account_id) return auth.chatgpt_account_id;
-  }
-  return '';
-}
-
-function persist(providerKey, p, accessToken, refreshToken, expirySec) {
-  db.setSetting('ai_api_key', accessToken);
-  db.setSetting('ai_model', ''); // drop any model from a previous provider (e.g. MiniMax)
-  db.setSetting('ai_account_id', ''); // codex sets this below; clear for others
-  db.setSetting('ai_oauth_provider', providerKey);
-  db.setSetting('ai_oauth_refresh', refreshToken || '');
-  db.setSetting('ai_oauth_expiry', new Date(Date.now() + Math.max(60, expirySec) * 1000).toISOString());
-  db.setSetting('ai_provider', p.apiProvider);
-  db.setSetting('ai_base_url', p.apiBaseUrl);
-  db.setSetting('ai_auth_header', p.authHeader || 'bearer');
-  db.setSetting('ai_preset', p.preset);
-  db.setSetting('ai_auth_method', 'oauth');
-}
-function saveTokens(providerKey, p, tok) {
-  persist(providerKey, p, tok.access_token, tok.refresh_token, Number(tok.expires_in || 3600));
-  if (p.apiProvider === 'openai-responses') db.setSetting('ai_account_id', codexAccountId(tok));
-}
-function saveMinimax(providerKey, p, tok) {
-  const raw = Number(tok.expired_in || 0); const now = Date.now();
-  const sec = raw > now / 2 ? Math.round((raw - now) / 1000) : raw;
-  persist(providerKey, p, tok.access_token, tok.refresh_token, Math.max(60, sec || 3600));
-}
-
-// Refresh the access token if near expiry (no-op for API keys / Minimax handled on use).
+// Refresh the active provider's token if near expiry; updates vault + active config.
 async function ensureFreshToken() {
   const providerKey = db.getSetting('ai_oauth_provider');
   const p = PROVIDERS[providerKey]; if (!p) return;
   const expiry = db.getSetting('ai_oauth_expiry');
   if (expiry && (new Date(expiry).getTime() - Date.now()) > 120000) return;
   const refresh = db.getSetting('ai_oauth_refresh'); if (!refresh) return;
-  if (p.flavor === 'minimax') return; // Minimax refresh re-uses the token endpoint differently; skip auto for now
+  if (p.flavor === 'minimax') return; // Minimax refresh differs; skip auto for now
   const { data } = await formPost(p.tokenUrl, { grant_type: 'refresh_token', refresh_token: refresh, client_id: p.clientId });
-  if (data.access_token) saveTokens(providerKey, p, { ...data, refresh_token: data.refresh_token || refresh });
+  if (data.access_token) persistSession(providerKey, p, { ...data, refresh_token: data.refresh_token || refresh }, Number(data.expires_in || 3600));
 }
 
 const available = () => Object.keys(PROVIDERS).filter((k) => !PROVIDERS[k].disabled);
-module.exports = { PROVIDERS, startDevice, pollDevice, completeLoopbackManual, ensureFreshToken, available };
+module.exports = { PROVIDERS, startDevice, pollDevice, completeManual, ensureFreshToken, available, vaultProviders, activate, disconnect, providerForPreset, updateVaultModel };

@@ -22,7 +22,7 @@ roadmap e exporte um relatório PDF com a identidade visual da Okami.
 - **Roadmap** — nível atual, lacuna até a meta e próximo nível a conquistar para cada prática, com sugestões opcionais personalizadas por IA.
 - **Histórico & comparativo** — salve snapshots e acompanhe a evolução da maturidade ao longo do tempo.
 - **Persistência em SQLite** — salve avaliações de clientes no servidor, liste, recarregue e re-emita relatórios.
-- **PDF Okami** — relatório multipágina: capa, sumário, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas, evolução da maturidade (quando há snapshots), conclusão e apêndice de notas da avaliação.
+- **PDF Okami** — relatório multipágina: capa, sumário, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas, evolução da maturidade (quando há snapshots), conclusão e apêndices com as recomendações assistidas por IA (quando geradas) e as notas da avaliação.
 - **Bilíngue** — UI e relatórios completos em inglês/português.
 - **Operável por IA (MCP + ACP)** — agentes de IA leem **e operam** o sistema via **MCP** (HTTP + stdio) e os dois protocolos **ACP** (Agent Communication + Agent Client): criam avaliações, respondem perguntas, calculam, planejam e geram relatório.
 - **Self-contained** — o React é embutido localmente; o app renderiza mesmo offline / atrás de CSP.

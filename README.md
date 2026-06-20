@@ -22,7 +22,7 @@ export a polished, Okami-branded PDF report.
 - **Roadmap** — current level, gap to target and the next level to reach for every practice, with optional AI-tailored suggestions.
 - **History & compare** — save snapshots and track maturity evolution over time.
 - **SQLite persistence** — save client assessments on the server, list them, reload and re-report.
-- **Okami-branded PDF** — a multi-page report: cover, contents, executive summary, methodology, per-function findings, prioritized roadmap with concrete actions, maturity evolution (when snapshots exist), conclusion and an assessment-notes appendix.
+- **Okami-branded PDF** — a multi-page report: cover, contents, executive summary, methodology, per-function findings, prioritized roadmap with concrete actions, maturity evolution (when snapshots exist), conclusion, and appendices for the AI-assisted recommendations (when generated) and assessment notes.
 - **Bilingual** — full English/Portuguese UI and reports.
 - **AI-operable (MCP + ACP)** — AI agents read **and operate** the system over **MCP** (HTTP + stdio) and both **ACP** protocols (Agent Communication + Agent Client): create assessments, answer questions, score, plan and report.
 - **Self-contained** — React is vendored locally; the app renders even offline / behind CSP.

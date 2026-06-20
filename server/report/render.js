@@ -43,6 +43,7 @@ const STR = {
     concPri: 'Prioridades imediatas', concPriLede: 'As práticas com maior lacuna até a meta — detalhadas no Roadmap (seção 04):',
     concRec: 'Recomendação', concRecText: 'Concentre os esforços nas ações do Roadmap, priorizando ganhos rápidos, e reavalie a maturidade a cada 6 meses para acompanhar a evolução. A função com menor maturidade hoje é <strong>{fn}</strong> ({sc}/3) — um bom ponto de partida.',
     sNotes: 'Apêndice — Notas da avaliação', notesLede: 'Observações registradas durante a avaliação, por prática.',
+    sAI: 'Apêndice — Recomendações assistidas por IA', sAILede: 'Planos de ação personalizados gerados por IA por prática, a partir das respostas da avaliação e dos critérios do OWASP SAMM. Complemento ao Roadmap.', aiNote: 'Gerado por IA — revise antes de usar.',
     current: 'Atual', target: 'Meta', gap: 'Lacuna', practice: 'Prática', streamA: 'A', streamB: 'B', level: 'Nível', page: 'Pág.',
     bands: ['Inicial / Ad-hoc', 'Em desenvolvimento', 'Maduro', 'Otimizado'],
     bandDesc: ['Práticas ausentes ou informais, executadas caso a caso.', 'Práticas iniciais, aplicadas de forma inconsistente.', 'Práticas definidas e adotadas de forma ampla e consistente.', 'Práticas medidas por métricas e melhoradas continuamente.'],
@@ -71,6 +72,7 @@ const STR = {
     concPri: 'Immediate priorities', concPriLede: 'The practices with the largest gap to target — detailed in the Roadmap (section 04):',
     concRec: 'Recommendation', concRecText: 'Focus on the Roadmap actions, prioritizing quick wins, and re-assess maturity every 6 months to track progress. The lowest-maturity function today is <strong>{fn}</strong> ({sc}/3) — a good starting point.',
     sNotes: 'Appendix — Assessment notes', notesLede: 'Observations recorded during the assessment, by practice.',
+    sAI: 'Appendix — AI-assisted recommendations', sAILede: 'AI-generated tailored action plans per practice, from the assessment answers and the OWASP SAMM criteria. A complement to the Roadmap.', aiNote: 'AI-generated — review before acting.',
     current: 'Current', target: 'Target', gap: 'Gap', practice: 'Practice', streamA: 'A', streamB: 'B', level: 'Level', page: 'Pg.',
     bands: ['Initial / Ad-hoc', 'Developing', 'Mature', 'Optimized'],
     bandDesc: ['Practices absent or informal, performed ad hoc.', 'Initial practices, applied inconsistently.', 'Practices defined and adopted broadly and consistently.', 'Practices measured by metrics and continuously improved.'],
@@ -278,6 +280,50 @@ function notesPages(numS, groups, L) {
   });
 }
 
+// Render a stored AI suggestion (markdown action plan) to report HTML, reusing the
+// same "N. **Title**" + "**Label:** body" format the app produces.
+function renderSuggestion(md) {
+  if (!md) return '';
+  const inl = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  let out = ''; let n = 0;
+  for (const raw of String(md).split(/\n/)) {
+    const t = raw.trim(); if (!t) continue;
+    const mAct = t.match(/^(\d+)[.)]\s*\*\*(.+?)\*\*:?\s*(.*)$/);
+    const mLbl = t.match(/^\*\*(.+?):\*\*\s*(.*)$/);
+    if (mAct) {
+      n++; const title = mAct[2].replace(/\*\*/g, '').replace(/:$/, '');
+      out += `<div style="margin:9px 0 0;padding:9px 0 0;border-top:1px solid var(--doc-line-soft);break-inside:avoid;"><div style="display:flex;gap:8px;align-items:baseline;"><span style="flex:none;width:17px;height:17px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">${n}</span><strong style="font-family:var(--ok-display);font-size:12.5px;color:var(--doc-ink);">${inl(title)}</strong></div>`;
+      if (mAct[3]) out += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inl(mAct[3])}</div>`;
+      out += '</div>';
+    } else if (mLbl) {
+      out += `<div style="margin:2px 0 0 25px;font-size:11px;line-height:1.5;"><span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--doc-magenta);">${esc(mLbl[1])}</span> <span style="color:var(--doc-ink-soft);">${inl(mLbl[2])}</span></div>`;
+    } else if (!/^[-*_]{3,}$/.test(t)) {
+      out += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inl(t)}</div>`;
+    }
+  }
+  return out;
+}
+function aiSuggestionsPages(numS, state, L, isPT) {
+  const ai = state.ai || {};
+  const items = [];
+  for (const f of SAMM.functions) for (const p of f.practices) {
+    const e = ai[p.code];
+    if (e && e.text) items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, html: renderSuggestion(e.text) });
+  }
+  if (!items.length) return null;
+  const blocks = items.map((it) => `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 14px;margin:12px 0;break-inside:avoid;">
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}</strong></div>
+    ${it.html}</div>`);
+  const pages = [];
+  for (let i = 0; i < blocks.length; i += 2) pages.push(blocks.slice(i, i + 2));
+  return pages.map((grp, gi) => {
+    const head = gi === 0
+      ? secHead(numS, L.sAI, L.sAILede) + `<div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--doc-ink-mute);margin:-6px 0 10px;">⚠ ${esc(L.aiNote)}</div>`
+      : `<div class="doc-eyebrow">// ${numS} · ${esc(L.sAI)} (cont.)</div>`;
+    return sheet(L, head, grp.join(''));
+  });
+}
+
 function renderReportHTML(assessment) {
   const state = assessment.state || assessment;
   const meta = Object.assign({ org: '', team: '', date: '', lead: '', contrib: '' }, state.meta || {});
@@ -299,7 +345,11 @@ function renderReportHTML(assessment) {
   e = nn(); sections.push({ num: e, title: L.s4, sheets: roadmapPages(e, S, L, isPT, answers) });
   if (snaps.length >= 1) { e = nn(); sections.push({ num: e, title: L.sEvo, sheets: [evolutionPage(e, snaps, S, L)] }); }
   e = nn(); sections.push({ num: e, title: L.sConc, sheets: [conclusionPage(e, S, L, meta, isPT)] });
-  if (notes.length) sections.push({ num: 'A', title: L.sNotes, sheets: notesPages('A', notes, L) });
+  // ---- appendices (lettered, at the end) ----
+  let ax = 0; const ann = () => String.fromCharCode(65 + ax++); // A, B, …
+  const aiPages = aiSuggestionsPages('A', state, L, isPT); // AI is always the first appendix → 'A'
+  if (aiPages) { ann(); sections.push({ num: 'A', title: L.sAI, sheets: aiPages }); }
+  if (notes.length) { const a = ann(); sections.push({ num: a, title: L.sNotes, sheets: notesPages(a, notes, L) }); }
 
   // ---- page numbers: cover=1, TOC=2, sections start at 3 ----
   let pageCursor = 3;

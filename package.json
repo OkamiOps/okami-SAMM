@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "mcp": "node server/mcp-stdio.js",
     "test": "node tests/run.js",
     "postinstall": "node -e \"try{require('playwright').chromium}catch(e){}\"",
     "browser": "playwright install chromium"
@@ -16,8 +17,10 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.8.1",
     "express": "^4.21.2",
-    "playwright": "^1.49.1"
+    "playwright": "^1.49.1",
+    "zod": "^4.4.3"
   }
 }

@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { summarize, SAMM } = require('../score');
+const { summarize, SAMM, practiceActions } = require('../score');
 
 const FONTS = (() => { try { return fs.readFileSync(path.join(__dirname, 'fonts.css'), 'utf8'); } catch (_) { return ''; } })();
 const LOGO = (() => {
@@ -13,9 +13,6 @@ const LOGO = (() => {
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const num = (n, d = 2) => Number(n).toFixed(d);
-
-const PRACTICE = {};
-for (const f of SAMM.functions) for (const p of f.practices) PRACTICE[p.code] = { ...p, fn: f };
 
 const FN_COLOR = { G: 'var(--doc-orange)', D: 'var(--doc-cyan)', I: 'var(--doc-magenta)', V: 'var(--doc-warning)', O: 'var(--doc-success)' };
 const FN_TAG = { G: 't-org', D: 't-cyan', I: 't-mag', V: 't-org', O: 't-ok' };
@@ -185,21 +182,12 @@ function functionPages(numS, S, L) {
   });
 }
 
-function practiceActions(code, focusLevel, answers, isPT) {
-  const p = PRACTICE[code]; if (!p) return [];
-  return p.questions.filter((q) => q.level === focusLevel).sort((a, b) => a.stream.localeCompare(b.stream)).map((q) => {
-    const a = answers[q.id];
-    const guide = (isPT ? (q.guidancePt || q.guidance) : q.guidance) || [];
-    return { streamLabel: (p.activities[q.stream] ? (isPT ? p.activities[q.stream].pt : p.activities[q.stream].en) : q.stream), text: isPT ? q.pt : q.en, guidance: guide.slice(0, 2), done: a != null && a >= 2 };
-  });
-}
-
 function roadmapBlock(p, L, isPT, answers) {
   const focus = p.gap > 0 ? p.focus : 0;
-  const actions = focus ? practiceActions(p.code, focus, answers, isPT) : [];
+  const actions = focus ? practiceActions(p.code, focus, answers, isPT).map((a) => ({ ...a, guidance: a.guidance.slice(0, 2) })) : [];
   const acts = actions.map((a) => `<div style="margin:8px 0;">
     <div style="display:flex;gap:8px;align-items:baseline;"><span style="font-family:var(--ok-mono);font-size:9px;color:${a.done ? 'var(--doc-success)' : 'var(--doc-magenta)'};border:1px solid currentColor;padding:1px 6px;flex:none;">${a.done ? '✓ ' + L.done : L.pending}</span><span style="font-size:12px;color:var(--doc-ink);font-weight:500;">${esc(a.streamLabel)}</span></div>
-    <div style="font-size:12px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0 0;">${esc(a.text)}</div>
+    <div style="font-size:12px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0 0;">${esc(a.question)}</div>
     ${a.guidance.length ? `<ul style="margin:4px 0 0;padding:0;list-style:none;">${a.guidance.map((gg) => `<li style="position:relative;padding:2px 0 2px 16px;font-size:11px;color:var(--doc-ink-mute);line-height:1.45;"><span style="position:absolute;left:0;color:var(--doc-cyan);">→</span>${esc(gg)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[p.fnCode]};padding:12px 14px;margin:12px 0;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><div><span class="tag ${FN_TAG[p.fnCode]}" style="margin-right:8px;">${esc(p.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(p.name)}</strong></div>

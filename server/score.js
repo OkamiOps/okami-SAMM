@@ -100,4 +100,40 @@ function streamScore(p, answers, st) {
   return s;
 }
 
-module.exports = { SAMM, W, allPractices, ps, achievedLevel, effTarget, evalStats, summarize };
+// code -> practice (with activities) for action lookups
+const PRACTICE = {};
+for (const f of SAMM.functions) for (const p of f.practices) PRACTICE[p.code] = { ...p, fn: f };
+
+// Recommended actions to reach a practice's focus level: the focus-level
+// questions (streams A/B) with their guidance criteria and current status.
+function practiceActions(code, focusLevel, answers, isPT) {
+  const p = PRACTICE[code]; if (!p) return [];
+  return p.questions.filter((q) => q.level === focusLevel).sort((a, b) => a.stream.localeCompare(b.stream)).map((q) => {
+    const a = answers[q.id];
+    const guide = (isPT ? (q.guidancePt || q.guidance) : q.guidance) || [];
+    return {
+      stream: q.stream,
+      streamLabel: (p.activities[q.stream] ? (isPT ? p.activities[q.stream].pt : p.activities[q.stream].en) : q.stream),
+      question: isPT ? q.pt : q.en,
+      guidance: guide,
+      done: a != null && a >= 2,
+    };
+  });
+}
+
+// Full roadmap: priority practices (largest gap first) with recommended actions.
+function roadmap(state) {
+  const isPT = state.lang !== 'en';
+  const answers = state.answers || {};
+  const S = summarize(state);
+  return {
+    overall: S.overall, band: S.band,
+    priorities: S.priority.map((p) => ({
+      code: p.code, name: p.name, function: p.fnName,
+      current: p.score, target: p.target, gap: p.gap, focusLevel: p.focus,
+      actions: p.gap > 0 ? practiceActions(p.code, p.focus, answers, isPT).slice(0, 6) : [],
+    })),
+  };
+}
+
+module.exports = { SAMM, W, PRACTICE, allPractices, ps, achievedLevel, effTarget, evalStats, summarize, practiceActions, roadmap };

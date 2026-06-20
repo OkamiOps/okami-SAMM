@@ -24,6 +24,7 @@ roadmap e exporte um relatório PDF com a identidade visual da Okami.
 - **Persistência em SQLite** — salve avaliações de clientes no servidor, liste, recarregue e re-emita relatórios.
 - **PDF Okami** — relatório multipágina: capa, sumário, resumo executivo, metodologia, achados por função, roadmap priorizado com ações concretas, evolução da maturidade (quando há snapshots), conclusão e apêndice de notas da avaliação.
 - **Bilíngue** — UI e relatórios completos em inglês/português.
+- **Operável por IA (MCP)** — agentes de IA leem **e operam** o sistema via MCP (HTTP + stdio): criam avaliações, respondem perguntas, calculam, planejam e geram relatório.
 - **Self-contained** — o React é embutido localmente; o app renderiza mesmo offline / atrás de CSP.
 
 ---
@@ -147,6 +148,47 @@ OpenAI/Minimax — é um item futuro; hoje a config é por chave + URL custom.)
 
 ---
 
+## 🔌 MCP — agentes de IA operam o sistema
+
+O sistema inteiro é exposto via **MCP** (Model Context Protocol), então um cliente
+de IA (Claude e afins) pode ler **e operar** tudo: descobrir o modelo SAMM, criar
+avaliação, responder perguntas (ex.: a partir de uma transcrição de entrevista),
+definir metas, ler scorecard/roadmap, registrar progresso e gerar o relatório PDF.
+
+Dois transportes, os mesmos tools:
+
+- **HTTP** (remoto) — em `POST /mcp` (Streamable HTTP). Aponte qualquer cliente MCP para `https://sua-instancia/mcp`.
+- **stdio** (local) — `node server/mcp-stdio.js`, operando o mesmo SQLite (`DB_PATH`).
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http okami-samm https://sua-instancia/mcp          # remoto
+claude mcp add okami-samm -- node /caminho/abs/okami-samm/server/mcp-stdio.js  # local
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "okami-samm": {
+      "command": "node",
+      "args": ["/caminho/abs/okami-samm/server/mcp-stdio.js"],
+      "env": { "DB_PATH": "/caminho/abs/okami-samm/data/okami-samm.db" }
+    }
+  }
+}
+```
+
+**Tools:** `get_samm_model`, `list_assessments`, `get_assessment`,
+`create_assessment`, `set_answers`, `set_targets`, `set_notes`, `get_scorecard`,
+`get_roadmap`, `add_snapshot`, `generate_report`, `delete_assessment`,
+`export_backup`, `import_backup` (+ um resource `samm://model`).
+
+> O endpoint MCP tem acesso **total de leitura/escrita** (igual à API REST). Se
+> expuser `/mcp` na internet, coloque atrás de um proxy reverso com auth / VPN.
+
 ## 🗄️ Banco de dados
 
 SQLite em `DB_PATH` (default `./data/okami-samm.db`, criado automaticamente, modo
@@ -206,6 +248,7 @@ Ou defina `BACKEND_URL` em **Pages → Settings → Variables**.
 
 ```
 server/    Express, SQLite, scoring, proxy de IA e geração de PDF
+  mcp.js + mcp-stdio.js   MCP server (tools/resources) + entry stdio
   data/samm.json     modelo OWASP SAMM (extraído do app)
   report/            render.js (HTML Okami) + pdf.js (Playwright) + styles.js + fonts.css
 public/    app SAMM standalone + app-bridge.js + vendor/ (React)

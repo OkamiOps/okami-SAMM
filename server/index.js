@@ -127,6 +127,22 @@ app.post('/api/ai/suggest', wrap(async (req, res) => {
   }
 }));
 
+// ---- MCP (Streamable HTTP) — AI clients connect at /mcp ----
+const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+const { createMcpServer } = require('./mcp');
+
+app.post('/mcp', wrap(async (req, res) => {
+  // stateless: a fresh server+transport per request (single-user, low traffic)
+  const server = createMcpServer();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+  res.on('close', () => { transport.close(); server.close(); });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+}));
+// Stateless mode has no server-initiated stream / session teardown.
+app.get('/mcp', (req, res) => res.status(405).json({ error: 'Method Not Allowed (stateless MCP — use POST)' }));
+app.delete('/mcp', (req, res) => res.status(405).json({ error: 'Method Not Allowed' }));
+
 // ---- static frontend ----
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

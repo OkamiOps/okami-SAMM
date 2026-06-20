@@ -171,12 +171,22 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
   const baseUrl = (b.ai_base_url || db.getSetting('ai_base_url') || (provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
   const key = (b.ai_api_key && b.ai_api_key.trim()) || db.getSetting('ai_api_key') || '';
   if (!key) return res.status(400).json({ error: 'enter an API key / token first' });
-  // The ChatGPT/Codex backend accepts only gpt-5 and gpt-5-codex (Codex normalizes
-  // every other name to these). It has no /models endpoint — return the known set.
-  // Trigger on the saved provider too: the UI sends the preset's API style ("openai"),
-  // but a Codex sign-in actually runs as "openai-responses".
+  // ChatGPT/Codex backend: dot-versioned slugs (a dashed name like gpt-5-5 → 404).
+  // Trigger on the saved provider too — the UI sends the preset's API style ("openai"),
+  // but a Codex sign-in runs as "openai-responses". Curated current set (kept in sync
+  // with the Codex/Hermes model list) + best-effort live discovery from the backend.
   if (provider === 'openai-responses' || savedProvider === 'openai-responses') {
-    return res.json({ models: ['gpt-5', 'gpt-5-codex'] });
+    const curated = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-chat', 'gpt-5'];
+    try {
+      const accountId = db.getSetting('ai_account_id') || '';
+      const r = await fetch('https://chatgpt.com/backend-api/models', { headers: { authorization: 'Bearer ' + key, 'chatgpt-account-id': accountId, originator: 'codex_cli_rs', accept: 'application/json' } });
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}));
+        const live = (d.models || d.data || []).map((m) => m.slug || m.id || m.name).filter((x) => /^gpt-5\.\d/.test(x || ''));
+        if (live.length) return res.json({ models: Array.from(new Set(live.concat(curated))) });
+      }
+    } catch (_) {}
+    return res.json({ models: curated });
   }
   try {
     const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';

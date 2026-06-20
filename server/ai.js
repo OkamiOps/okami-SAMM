@@ -28,7 +28,7 @@ function resolveConfig() {
   const model = s('ai_model') || process.env.AI_MODEL || '';
   const authHeader = s('ai_auth_header') || 'x-api-key';
   if (provider === 'openai-responses') { // OpenAI/Codex subscription via the ChatGPT Responses backend
-    return { provider, key, baseUrl: (baseUrl || 'https://chatgpt.com/backend-api/codex').replace(/\/+$/, ''), model: model || 'gpt-5', authHeader: 'bearer' };
+    return { provider, key, baseUrl: (baseUrl || 'https://chatgpt.com/backend-api/codex').replace(/\/+$/, ''), model: model || 'gpt-5.5', authHeader: 'bearer' };
   }
   if (provider === 'anthropic') {
     return { provider, key, baseUrl: (baseUrl || 'https://api.anthropic.com').replace(/\/+$/, ''), model: model || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', authHeader };
@@ -94,13 +94,18 @@ async function callCodexResponses(cfg, messages) {
     try { const c = JSON.parse(Buffer.from(cfg.key.split('.')[1], 'base64url').toString('utf8')); accountId = (c['https://api.openai.com/auth'] || {}).chatgpt_account_id || ''; } catch (_) {}
   }
   const { system, turns } = splitMessages(messages);
-  const input = turns.map((m) => m.content).join('\n');
-  // The ChatGPT/Codex backend accepts only gpt-5 / gpt-5-codex; map anything else.
-  const model = /codex/i.test(cfg.model || '') ? 'gpt-5-codex' : 'gpt-5';
+  // Responses-API input shape (matches Codex): system → instructions, turns → input
+  // array of message items (input_text for user, output_text for assistant).
+  const input = turns.map((m) => ({ type: 'message', role: m.role === 'assistant' ? 'assistant' : 'user', content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: m.content }] }));
+  // Send the model slug EXACTLY as selected — the Codex backend uses dot-versioned
+  // names (gpt-5.5, gpt-5.4, gpt-5.3-codex…); a dashed name (gpt-5-5) returns 404.
+  // Heal stale/dashed/non-gpt-5 slugs (e.g. an old gpt-5-codex / o4-mini) to gpt-5.5.
+  let model = cfg.model || 'gpt-5.5';
+  if (!/^gpt-5(\.\d|$)/.test(model)) model = 'gpt-5.5';
   // It streams (SSE) and gates on Codex-CLI-like headers — a non-codex `originator`
   // or a missing chatgpt-account-id gets a 403. These are exactly the headers the
   // official Codex flow sends (no custom User-Agent).
-  const body = { model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: true };
+  const body = { model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: true, include: [] };
   const headers = {
     'content-type': 'application/json',
     accept: 'text/event-stream',

@@ -182,8 +182,9 @@ key, sem gateway externo, nada pra instalar (validado contra os providers reais)
 **OpenAI/Codex** usa o fluxo authorize do Codex: *Sign in with OpenAI* abre o
 auth.openai.com; depois de autorizar você **cola de volta a URL que a OpenAI te dá**
 no campo mostrado (funciona local e remoto — sem porta aberta). O token vai pro
-backend do ChatGPT (Responses API), usando só os modelos `gpt-5` / `gpt-5-codex`;
-backend experimental.
+backend do ChatGPT (Responses API). Os modelos usam slugs **com ponto** (`gpt-5.5`,
+`gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.3-codex-spark`, `gpt-5`) — um nome
+com traço tipo `gpt-5-5` dá 404; backend experimental.
 
 **Cada login fica salvo por provider.** Entre no Grok, Minimax e OpenAI uma vez e
 troque entre eles quando quiser pelo dropdown + *Save AI* — sem re-autenticar.

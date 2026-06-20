@@ -176,6 +176,32 @@
     document.body.appendChild(bar);
   }
 
+  // ---- scroll-to-top floating button (bottom-left, appears after scrolling) ----
+  function mountScrollTop() {
+    if (document.getElementById('okm-scrolltop')) return;
+    var b = document.createElement('button');
+    b.id = 'okm-scrolltop';
+    b.setAttribute('aria-label', 'Scroll to top');
+    b.innerHTML = '↑';
+    b.style.cssText = 'position:fixed;left:18px;bottom:18px;z-index:99990;width:42px;height:42px;'
+      + 'display:flex;align-items:center;justify-content:center;cursor:pointer;'
+      + 'background:#0b0b12;color:#57C7D8;border:1px solid #57C7D8;border-radius:50%;'
+      + 'font-size:20px;line-height:1;box-shadow:0 8px 30px -12px rgba(0,0,0,.7);'
+      + 'opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .25s,transform .25s,visibility .25s;';
+    b.onmouseenter = function () { b.style.background = '#11111b'; };
+    b.onmouseleave = function () { b.style.background = '#0b0b12'; };
+    b.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    document.body.appendChild(b);
+    var toggle = function () {
+      var show = (window.scrollY || document.documentElement.scrollTop) > 300;
+      b.style.opacity = show ? '1' : '0';
+      b.style.visibility = show ? 'visible' : 'hidden';
+      b.style.transform = show ? 'translateY(0)' : 'translateY(8px)';
+    };
+    window.addEventListener('scroll', toggle, { passive: true });
+    toggle();
+  }
+
   // ---- hide built-in AI + reroute built-in "↓ PDF" to the Okami report ----
   function applyConfigUI() {
     document.querySelectorAll('button').forEach(function (b) {
@@ -193,6 +219,7 @@
 
   function init() {
     mountToolbar();
+    mountScrollTop();
     applyConfigUI();
     new MutationObserver(function () { applyConfigUI(); }).observe(document.body, { childList: true, subtree: true });
   }

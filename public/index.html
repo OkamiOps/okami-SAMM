@@ -38,8 +38,10 @@
 <div style="--ok-bg-0:#060609;--ok-bg-1:#0b0b12;--ok-bg-2:#11111b;--ok-bg-3:#1a1a26;--ok-line:#1f1f2e;--ok-line-soft:#15151f;--ok-grid:rgba(255,255,255,0.028);--ok-fg:#f4f4f8;--ok-fg-soft:#b9bac8;--ok-fg-mute:#6c6d80;--ok-fg-dim:#3d3e50;--ok-orange:oklch(72% 0.19 45);--ok-magenta:oklch(70% 0.27 340);--ok-cyan:oklch(82% 0.14 200);--ok-success:oklch(78% 0.16 150);--ok-warning:oklch(82% 0.16 85);--ok-danger:oklch(65% 0.22 25);--ok-accent:var(--ok-orange);--ok-glow:0.55;--ok-mono:'JetBrains Mono',ui-monospace,monospace;--ok-display:'Space Grotesk',system-ui,sans-serif;min-height:100vh;color:var(--ok-fg);font-family:var(--ok-display);background-color:var(--ok-bg-0);background-image:radial-gradient(820px 460px at 8% -8%, color-mix(in oklch, var(--ok-orange) 9%, transparent), transparent 60%),radial-gradient(820px 460px at 102% -2%, color-mix(in oklch, var(--ok-cyan) 7%, transparent), transparent 58%),linear-gradient(90deg,var(--ok-grid) 1px,transparent 1px),linear-gradient(var(--ok-grid) 1px,transparent 1px);background-size:auto,auto,64px 64px,64px 64px;">
 <div style="{{ themeStyle }}">
 
+  <!-- ============ STICKY HEADER (top bar + stepper, always visible) ============ -->
+  <div style="position:sticky;top:0;z-index:30;background:color-mix(in oklch,var(--ok-bg-0) 90%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--ok-line);">
   <!-- ============ TOP BAR ============ -->
-  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px clamp(16px,4vw,40px);background:color-mix(in oklch,var(--ok-bg-0) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--ok-line);">
+  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px clamp(16px,4vw,40px);">
     <img src="assets/okami-maturity-on-dark.png" alt="OKAMI Maturity — Evolve · Measure · Results" style="height:38px;width:auto;display:block;" />
     <div style="flex:1;"></div>
     <div data-print="hide" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -54,14 +56,15 @@
   </div>
 
   <!-- ============ STEPPER NAV ============ -->
-  <div data-print="hide" style="display:flex;gap:0;flex-wrap:wrap;padding:0 clamp(16px,4vw,40px);border-bottom:1px solid var(--ok-line);background:color-mix(in oklch,var(--ok-bg-1) 50%,transparent);">
+  <div data-print="hide" style="display:flex;gap:0;flex-wrap:wrap;padding:0 clamp(16px,4vw,40px);border-top:1px solid var(--ok-line-soft);overflow-x:auto;">
     <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
       <button onClick="{{ st.onClick }}" style="{{ st.style }}">
-        <span style="font-family:var(--ok-mono);font-size:11px;opacity:.7;">{{ st.num }}</span>
+        <span style="{{ st.numStyle }}">{{ st.num }}</span>
         <span>{{ st.label }}</span>
       </button>
     </sc-for>
   </div>
+  </div><!-- /sticky header -->
 
   <!-- ============ MAIN ============ -->
   <div style="max-width:1200px;margin:0 auto;padding:clamp(20px,3.5vw,44px) clamp(16px,4vw,40px) 120px;">
@@ -924,7 +927,7 @@ class Component extends DCLogic {
 
   // style helpers (objects)
   langStyle(active){ return { height:'34px', padding:'0 13px', background: active?'var(--ok-accent)':'transparent', border:'none', color: active?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-mono)', fontSize:'11px', fontWeight: active?700:500, letterSpacing:'.1em', cursor:'pointer' }; }
-  stepStyle(active){ return { display:'inline-flex', alignItems:'center', gap:'9px', padding:'14px 18px', background:'transparent', border:'none', borderBottom: '2px solid '+(active?'var(--ok-accent)':'transparent'), color: active?'var(--ok-fg)':'var(--ok-fg-mute)', fontFamily:'var(--ok-display)', fontWeight:500, fontSize:'14px', cursor:'pointer', marginBottom:'-1px' }; }
+  stepStyle(active, color){ return { display:'inline-flex', alignItems:'center', gap:'9px', padding:'14px 18px', background:'transparent', border:'none', borderBottom: '2px solid '+(active?(color||'var(--ok-accent)'):'transparent'), color: active?'var(--ok-fg)':'var(--ok-fg-mute)', fontFamily:'var(--ok-display)', fontWeight:500, fontSize:'14px', cursor:'pointer', marginBottom:'-1px' }; }
   fnNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'10px 12px', textAlign:'left', background: active?'var(--ok-bg-2)':'transparent', border:'1px solid '+(active?'var(--ok-line)':'transparent'), borderLeft:'2px solid '+(active?color:'transparent'), color:'var(--ok-fg)', cursor:'pointer' }; }
   pNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'9px 12px 9px 10px', textAlign:'left', background: active?'color-mix(in oklch,'+color+' 12%,transparent)':'transparent', border:'1px solid '+(active?'color-mix(in oklch,'+color+' 40%,var(--ok-line))':'var(--ok-line-soft)'), color: active?'var(--ok-fg)':'var(--ok-fg-soft)', cursor:'pointer' }; }
   optStyle(selected,color){ return { minHeight:'44px', padding:'8px 10px', background: selected?color:'var(--ok-bg-0)', border:'1px solid '+(selected?color:'var(--ok-line)'), color: selected?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-display)', fontWeight: selected?600:400, fontSize:'13px', lineHeight:1.25, cursor:'pointer', textAlign:'center' }; }
@@ -941,7 +944,8 @@ class Component extends DCLogic {
 
     // steps
     const stepDefs=[['setup',L.stSetup,'01'],['assess',L.stAssess,'02'],['scorecard',L.stScore,'03'],['roadmap',L.stRoad,'04'],['history',L.stHistory,'05'],['compare',L.stCompare,'06']];
-    const steps=stepDefs.map(([k,label,num])=>({ num, label, onClick:()=>this.go(k), style:this.stepStyle(S.screen===k) }));
+    const stepColors=['var(--ok-orange)','var(--ok-cyan)','var(--ok-magenta)','var(--ok-orange)','var(--ok-cyan)','var(--ok-magenta)'];
+    const steps=stepDefs.map(([k,label,num],i)=>{ const c=stepColors[i], act=S.screen===k; return { num, label, onClick:()=>this.go(k), style:this.stepStyle(act,c), numStyle:{ fontFamily:'var(--ok-mono)', fontSize:'11px', color:c, opacity: act?1:0.78 } }; });
 
     // overall progress
     let total=0, answered=0;

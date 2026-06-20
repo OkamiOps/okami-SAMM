@@ -26,16 +26,9 @@ CREATE TABLE IF NOT EXISTS assessments (
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS snapshots (
-  id            TEXT PRIMARY KEY,
-  assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
-  label         TEXT,
-  overall_score REAL,
-  state_json    TEXT NOT NULL,
-  created_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_snap_assessment ON snapshots(assessment_id);
 `);
+// Note: assessment "snapshots" live inside state_json (state.snapshots) — used by
+// the app's History/Evolution. There is intentionally no separate snapshots table.
 
 const now = () => new Date().toISOString();
 const uuid = () => crypto.randomUUID();
@@ -84,21 +77,6 @@ const listAssessments = () =>
 
 const deleteAssessment = (id) => db.prepare('DELETE FROM assessments WHERE id=?').run(id).changes > 0;
 
-const addSnapshot = (assessmentId, state, label) => {
-  const a = db.prepare('SELECT id FROM assessments WHERE id=?').get(assessmentId);
-  if (!a) return null;
-  const id = uuid(); const ts = now();
-  let overall = null; try { overall = summarize(state).overall; } catch (_) {}
-  db.prepare(`INSERT INTO snapshots (id, assessment_id, label, overall_score, state_json, created_at)
-              VALUES (?,?,?,?,?,?)`)
-    .run(id, assessmentId, label || null, overall, JSON.stringify(state), ts);
-  return { id, assessment_id: assessmentId, label, overall_score: overall, created_at: ts };
-};
-
-const listSnapshots = (assessmentId) =>
-  db.prepare(`SELECT id, assessment_id, label, overall_score, created_at
-              FROM snapshots WHERE assessment_id=? ORDER BY created_at ASC`).all(assessmentId);
-
 // ---- full backup / restore (single-file portable history) ----
 const exportAll = () => {
   const rows = db.prepare('SELECT * FROM assessments ORDER BY created_at ASC').all();
@@ -140,5 +118,5 @@ const importAll = (data, mode = 'merge') => {
 
 module.exports = {
   db, createAssessment, updateAssessment, getAssessment, listAssessments,
-  deleteAssessment, addSnapshot, listSnapshots, exportAll, importAll,
+  deleteAssessment, exportAll, importAll,
 };

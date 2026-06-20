@@ -84,16 +84,6 @@ app.post('/api/restore', wrap((req, res) => {
   }
 }));
 
-// ---- snapshots ----
-app.get('/api/assessments/:id/snapshots', wrap((req, res) => res.json(db.listSnapshots(req.params.id))));
-app.post('/api/assessments/:id/snapshots', wrap((req, res) => {
-  const { state, label } = req.body || {};
-  if (!state) return res.status(400).json({ error: 'missing state' });
-  const snap = db.addSnapshot(req.params.id, state, label);
-  if (!snap) return res.status(404).json({ error: 'assessment not found' });
-  res.status(201).json(snap);
-}));
-
 // ---- PDF report (saved assessment) ----
 app.get('/api/assessments/:id/report.pdf', wrap(async (req, res) => {
   const a = db.getAssessment(req.params.id);

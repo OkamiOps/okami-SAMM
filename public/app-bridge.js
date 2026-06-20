@@ -29,8 +29,8 @@
   function setState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
   function lang() { return (getState().lang === 'pt') ? 'pt' : 'en'; }
   var T = {
-    pt: { save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restaurar', restored: function (n) { return n + ' avaliação(ões) restaurada(s)'; } },
-    en: { save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restore', restored: function (n) { return n + ' assessment(s) restored'; } },
+    pt: { newA: '＋ Nova', newConfirm: 'Iniciar uma nova avaliação? Alterações não salvas no servidor serão perdidas.', save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restaurar', restored: function (n) { return n + ' avaliação(ões) restaurada(s)'; } },
+    en: { newA: '＋ New', newConfirm: 'Start a new assessment? Unsaved server changes will be lost.', save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restore', restored: function (n) { return n + ' assessment(s) restored'; } },
   };
   function t(k) { return (T[lang()] || T.pt)[k]; }
 
@@ -170,10 +170,19 @@
       b.addEventListener('click', fn);
       return b;
     }
+    bar.appendChild(btn(t('newA'), '#cf3d8a', newAssessment));
     bar.appendChild(btn('☁ ' + t('save'), '#57C7D8', saveServer));
     bar.appendChild(btn('📂 ' + t('load'), '#2a2b3a', openLoad));
     bar.appendChild(btn('📄 ' + t('pdf'), '#e4782a', makePDF));
     document.body.appendChild(bar);
+  }
+
+  // ---- start a fresh assessment (clears local draft + server link) ----
+  function newAssessment() {
+    if (!window.confirm(t('newConfirm'))) return;
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(IDKEY);
+    location.reload();
   }
 
   // ---- scroll-to-top floating button (bottom-left, appears after scrolling) ----

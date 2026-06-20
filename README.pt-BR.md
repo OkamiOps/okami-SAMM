@@ -110,8 +110,6 @@ npm test    # tests/offline-render.js — o app deve renderizar com o CDN bloque
 | GET | `/api/assessments/:id` | estado completo |
 | PUT | `/api/assessments/:id` | atualiza (`{ state }`) |
 | DELETE | `/api/assessments/:id` | remove |
-| GET | `/api/assessments/:id/snapshots` | lista snapshots |
-| POST | `/api/assessments/:id/snapshots` | grava snapshot (`{ state, label }`) |
 | GET | `/api/assessments/:id/report.pdf` | PDF Okami da avaliação |
 | POST | `/api/report/preview.pdf` | PDF a partir de um `state` cru (sem salvar) |
 | GET | `/api/backup` | baixa um backup JSON de **todas** as avaliações |
@@ -123,11 +121,14 @@ O `state` é o estado completo do app (`meta`, `answers`, `notes`, `targets`,
 
 ### Barra de ações no app
 
-A barra flutuante (canto inferior direito) tem **☁ Salvar** (cria/atualiza no
-servidor), **📂 Carregar** (lista e restaura) e **📄 Relatório PDF** (PDF Okami da
-avaliação atual). O botão **PDF** do topo também produz o relatório Okami. O
-diálogo Carregar também tem **⤓ Backup** / **⤒ Restaurar** para exportar/importar
-todos os seus dados.
+A barra flutuante (canto inferior direito) tem **＋ Nova** (inicia uma avaliação
+do zero), **☁ Salvar** (cria/atualiza no servidor), **📂 Carregar** (lista e
+restaura) e **📄 Relatório PDF** (PDF Okami da avaliação atual). O botão **PDF** do
+topo também produz o relatório Okami. O diálogo Carregar também tem **⤓ Backup** /
+**⤒ Restaurar** para exportar/importar todos os seus dados.
+
+Durante a avaliação dá pra responder pelo **teclado**: `0–3` responde a pergunta
+em foco e avança, `↑/↓` navegam, `←/→` mudam de prática, `⌫` limpa.
 
 ---
 

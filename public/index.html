@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OKAMI Maturity — OWASP SAMM v2</title>
+<meta name="theme-color" content="#060609">
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <!-- React vendored locally so the app is self-contained (no unpkg CDN at runtime).
      Loaded before support.js, whose loadReactUmd() short-circuits when window.React exists. -->
 <script src="./vendor/react.production.min.js"></script>
@@ -179,6 +185,10 @@
           </div>
         </div>
 
+        <div data-print="hide" style="display:flex;align-items:center;gap:8px;font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-mute);margin:-2px 0 4px;">
+          <span style="color:var(--ok-cyan);">⌨</span>{{ L.kbHint }}
+        </div>
+
         <sc-for list="{{ levels }}" as="lvl" hint-placeholder-count="3">
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -186,7 +196,7 @@
               <span style="flex:1;height:1px;background:linear-gradient(90deg,var(--ok-line),transparent);"></span>
             </div>
             <sc-for list="{{ lvl.questions }}" as="q" hint-placeholder-count="2">
-              <div style="border:1px solid var(--ok-line);background:var(--ok-bg-1);padding:clamp(14px,2vw,20px);">
+              <div id="{{ q.domId }}" style="{{ q.blockStyle }}">
                 <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;">
                   <span style="font-family:var(--ok-mono);font-size:10px;font-weight:600;color:{{ q.streamColor }};border:1px solid var(--ok-line);padding:3px 7px;flex:none;margin-top:2px;">{{ q.stream }}</span>
                   <div style="flex:1;">
@@ -643,7 +653,7 @@ class Component extends DCLogic {
         startBtn:'Iniciar avaliação', importBtn:'Importar', resumeNote:'Progresso salvo automaticamente neste navegador.',
         aboutKicker:'// o modelo', aboutTitle:'5 funções · 15 práticas · 90 perguntas',
         aboutLead:'O SAMM organiza a segurança em cinco funções de negócio, cada uma com três práticas avaliadas em níveis de maturidade de 0 a 3.',
-        level:'Nível', criteria:'Critérios de avaliação', notesPh:'Notas da entrevista — como e por quê…',
+        level:'Nível', criteria:'Critérios de avaliação', notesPh:'Notas da entrevista — como e por quê…', kbHint:'Teclado: 0–3 responde e avança · ↑/↓ navega · ←/→ muda de prática · ⌫ limpa',
         prevBtn:'Anterior', nextBtn:'Próxima prática', practiceScoreLabel:'Score', answeredWord:'respondidas',
         complete:'Ver scorecard', scKicker:'// resultado', overall:'Maturidade geral',
         byFunction:'Por função de negócio', radarTitle:'Radar de maturidade', barsTitle:'Maturidade por prática',
@@ -670,7 +680,7 @@ class Component extends DCLogic {
         startBtn:'Start assessment', importBtn:'Import', resumeNote:'Progress is saved automatically in this browser.',
         aboutKicker:'// the model', aboutTitle:'5 functions · 15 practices · 90 questions',
         aboutLead:'SAMM organizes security into five business functions, each with three practices scored across maturity levels 0 to 3.',
-        level:'Level', criteria:'Assessment criteria', notesPh:'Interview notes — how and why…',
+        level:'Level', criteria:'Assessment criteria', notesPh:'Interview notes — how and why…', kbHint:'Keyboard: 0–3 to answer & advance · ↑/↓ to move · ←/→ change practice · ⌫ clear',
         prevBtn:'Previous', nextBtn:'Next practice', practiceScoreLabel:'Score', answeredWord:'answered',
         complete:'View scorecard', scKicker:'// results', overall:'Overall maturity',
         byFunction:'By business function', radarTitle:'Maturity radar', barsTitle:'Maturity by practice',
@@ -691,6 +701,7 @@ class Component extends DCLogic {
         cmpKicker:'// compare', cmpTitle:'Compare assessments', cmpLead:'Select two assessments to see the evolution practice by practice.', cmpPickA:'Baseline (before)', cmpPickB:'Compared (after)', cmpCurrent:'Current assessment', cmpDeltaWord:'Change', cmpPracticeWord:'Practice', cmpNeed:'Save at least one snapshot to compare.', cmpSame:'no change', cmpFnDelta:'Change by function', cmpOverallDelta:'Overall change' }
     };
     this.state = this.load();
+    if(typeof window!=='undefined'){ this._onKey=this.onKey.bind(this); window.addEventListener('keydown', this._onKey); }
   }
   defaults(){
     return { lang:(this.props.defaultLang||'en'), screen:'setup', started:false,
@@ -928,6 +939,21 @@ class Component extends DCLogic {
   // style helpers (objects)
   langStyle(active){ return { height:'34px', padding:'0 13px', background: active?'var(--ok-accent)':'transparent', border:'none', color: active?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-mono)', fontSize:'11px', fontWeight: active?700:500, letterSpacing:'.1em', cursor:'pointer' }; }
   stepStyle(active, color){ return { display:'inline-flex', alignItems:'center', gap:'9px', padding:'14px 18px', background:'transparent', border:'none', borderBottom: '2px solid '+(active?(color||'var(--ok-accent)'):'transparent'), color: active?'var(--ok-fg)':'var(--ok-fg-mute)', fontFamily:'var(--ok-display)', fontWeight:500, fontSize:'14px', cursor:'pointer', marginBottom:'-1px' }; }
+  // ----- keyboard-driven answering (assessment screen) -----
+  practiceQOrder(ap){ return [1,2,3].flatMap(lv=>ap.questions.filter(q=>q.level===lv).sort((a,b)=>a.stream.localeCompare(b.stream)).map(q=>q.id)); }
+  scrollToQ(id){ if(typeof document==='undefined') return; setTimeout(()=>{ const el=document.getElementById('q-'+id); if(el&&el.scrollIntoView) el.scrollIntoView({block:'center',behavior:'smooth'}); }, 40); }
+  onKey(e){ const S=this.state; if(S.screen!=='assess'||!S.started) return;
+    const t=(e.target&&e.target.tagName||'').toLowerCase(); if(t==='input'||t==='textarea'||t==='select') return;
+    const D=this.d(); if(!D) return; const fn=D.functions[S.activeFnIdx]; if(!fn) return; const ap=fn.practices[S.activePracticeIdx]; if(!ap) return;
+    const order=this.practiceQOrder(ap); if(!order.length) return;
+    let fq=(S.focusQ&&order.includes(S.focusQ))?S.focusQ:order[0]; const idx=order.indexOf(fq); const k=e.key;
+    if(k>='0'&&k<='3'){ const answers=Object.assign({},S.answers); answers[fq]=+k; const next=order[Math.min(order.length-1,idx+1)]; this.set({answers,focusQ:next}); this.scrollToQ(next); e.preventDefault(); }
+    else if(k==='ArrowDown'||k==='j'){ const n=order[Math.min(order.length-1,idx+1)]; this.set({focusQ:n}); this.scrollToQ(n); e.preventDefault(); }
+    else if(k==='ArrowUp'||k==='k'){ const n=order[Math.max(0,idx-1)]; this.set({focusQ:n}); this.scrollToQ(n); e.preventDefault(); }
+    else if(k==='ArrowRight'){ this.set({focusQ:null}); this.nextPractice(); e.preventDefault(); }
+    else if(k==='ArrowLeft'){ this.set({focusQ:null}); this.prevPractice(); e.preventDefault(); }
+    else if(k==='Backspace'){ const answers=Object.assign({},S.answers); delete answers[fq]; this.set({answers}); e.preventDefault(); }
+  }
   fnNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'10px 12px', textAlign:'left', background: active?'var(--ok-bg-2)':'transparent', border:'1px solid '+(active?'var(--ok-line)':'transparent'), borderLeft:'2px solid '+(active?color:'transparent'), color:'var(--ok-fg)', cursor:'pointer' }; }
   pNavStyle(active,color){ return { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', width:'100%', padding:'9px 12px 9px 10px', textAlign:'left', background: active?'color-mix(in oklch,'+color+' 12%,transparent)':'transparent', border:'1px solid '+(active?'color-mix(in oklch,'+color+' 40%,var(--ok-line))':'var(--ok-line-soft)'), color: active?'var(--ok-fg)':'var(--ok-fg-soft)', cursor:'pointer' }; }
   optStyle(selected,color){ return { minHeight:'44px', padding:'8px 10px', background: selected?color:'var(--ok-bg-0)', border:'1px solid '+(selected?color:'var(--ok-line)'), color: selected?'#0a0a0f':'var(--ok-fg-soft)', fontFamily:'var(--ok-display)', fontWeight: selected?600:400, fontSize:'13px', lineHeight:1.25, cursor:'pointer', textAlign:'center' }; }
@@ -963,10 +989,13 @@ class Component extends DCLogic {
     // active practice questions
     const ap=activeFn.practices[S.activePracticeIdx];
     const scale=isPT?D.answerScalePT:D.answerScaleEN;
-    const buildQ=(q)=>{ const ans=S.answers[q.id];
-      return { id:q.id, stream:q.stream, streamColor: q.stream==='A'?'var(--ok-cyan)':'var(--ok-magenta)',
+    const qOrder=this.practiceQOrder(ap);
+    const focusQ=(S.focusQ && qOrder.includes(S.focusQ))?S.focusQ:qOrder[0];
+    const buildQ=(q)=>{ const ans=S.answers[q.id]; const foc=q.id===focusQ;
+      return { id:q.id, domId:'q-'+q.id, stream:q.stream, streamColor: q.stream==='A'?'var(--ok-cyan)':'var(--ok-magenta)',
         activityLabel: isPT?ap.activities[q.stream].pt:ap.activities[q.stream].en,
         text: isPT?q.pt:q.en, guidance: isPT?q.guidancePt:q.guidance, note:S.notes[q.id]||'',
+        blockStyle:{ border:'1px solid '+(foc?'var(--ok-cyan)':'var(--ok-line)'), background:'var(--ok-bg-1)', padding:'clamp(14px,2vw,20px)', boxShadow: foc?'0 0 calc(20px*var(--ok-glow)) color-mix(in oklch,var(--ok-cyan) 28%,transparent)':'none', transition:'border-color .15s, box-shadow .15s', scrollMarginTop:'150px' },
         onNote:(e)=>this.setNote(q.id, e.target.value), onInfo:()=>this.set({infoId:q.id}),
         options: scale.map((o,i)=>({ label:o.label, onClick:()=>this.setAnswer(q.id,i), style:this.optStyle(ans===i, this.ansColors[i]) })) }; };
     const levels=[1,2,3].map(lv=>({ label:L.level+' '+lv, questions: ap.questions.filter(q=>q.level===lv).sort((a,b)=>a.stream.localeCompare(b.stream)).map(buildQ) }));

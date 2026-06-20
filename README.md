@@ -110,8 +110,6 @@ npm test    # tests/offline-render.js — the app must render with the CDN block
 | GET | `/api/assessments/:id` | full state |
 | PUT | `/api/assessments/:id` | update (`{ state }`) |
 | DELETE | `/api/assessments/:id` | delete |
-| GET | `/api/assessments/:id/snapshots` | list snapshots |
-| POST | `/api/assessments/:id/snapshots` | save snapshot (`{ state, label }`) |
 | GET | `/api/assessments/:id/report.pdf` | Okami PDF of the assessment |
 | POST | `/api/report/preview.pdf` | PDF from a raw `state` (without saving) |
 | GET | `/api/backup` | download a JSON backup of **all** assessments |
@@ -123,10 +121,14 @@ npm test    # tests/offline-render.js — the app must render with the CDN block
 
 ### In-app toolbar
 
-The floating toolbar (bottom-right) has **☁ Save** (create/update on the server),
-**📂 Load** (list & restore) and **📄 PDF report** (Okami PDF of the current
-assessment). The top **PDF** button also produces the Okami report. The Load
-dialog also has **⤓ Backup** / **⤒ Restore** to export/import all your data.
+The floating toolbar (bottom-right) has **＋ New** (start a fresh assessment),
+**☁ Save** (create/update on the server), **📂 Load** (list & restore) and
+**📄 PDF report** (Okami PDF of the current assessment). The top **PDF** button
+also produces the Okami report. The Load dialog also has **⤓ Backup** / **⤒ Restore**
+to export/import all your data.
+
+During the assessment you can answer by **keyboard**: `0–3` answers the focused
+question and advances, `↑/↓` move, `←/→` switch practice, `⌫` clears.
 
 ---
 

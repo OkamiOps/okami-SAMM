@@ -37,11 +37,6 @@ const PUT = (p, b) => ({ method: 'PUT', headers: { 'content-type': 'application/
     const upd = await json(`/api/assessments/${id}`, PUT('', { state: { ...state, meta: { ...state.meta, org: 'Updated' } } }));
     check('PUT update → org changed', upd.status === 200 && upd.body.org === 'Updated');
 
-    const snap = await json(`/api/assessments/${id}/snapshots`, POST('', { state, label: 'baseline' }));
-    check('POST snapshot → 201', snap.status === 201);
-    const snaps = await json(`/api/assessments/${id}/snapshots`);
-    check('GET snapshots → 1', Array.isArray(snaps.body) && snaps.body.length === 1);
-
     const backup = await json('/api/backup');
     check('GET backup has our assessment', backup.body && Array.isArray(backup.body.assessments) && backup.body.assessments.some((a) => a.id === id));
     const restore = await json('/api/restore', POST('', { assessments: backup.body.assessments, mode: 'merge' }));

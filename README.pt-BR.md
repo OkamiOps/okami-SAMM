@@ -165,8 +165,14 @@ em foco e avança, `↑/↓` navegam, `←/→` mudam de prática, `⌫` limpa.
 
 ## 🤖 IA (multi-provider, opcional)
 
-As sugestões do Roadmap funcionam com qualquer provider configurável por env
-(`server/ai.js`). O botão de IA só aparece quando há chave.
+Configure a IA na tela de **Settings** (admin, ⚙ no toolbar) — escolha um preset
+(OpenAI / Grok / Minimax / Anthropic) ou um endpoint custom OpenAI/Anthropic-compatível,
+cole sua chave e use **Test connection**. As variáveis de env (abaixo) seguem como
+fallback. O botão de IA só aparece quando há chave; a chave fica no banco e nunca
+é retornada crua pela API (mascarada na leitura).
+
+Retenção (purga automática de avaliações antigas) e gestão de usuários também
+ficam em Settings.
 
 | Provider | Variáveis |
 |---|---|

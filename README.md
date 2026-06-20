@@ -165,8 +165,13 @@ question and advances, `↑/↓` move, `←/→` switch practice, `⌫` clears.
 
 ## 🤖 AI (multi-provider, optional)
 
-The Roadmap suggestions work with any provider configured via env
-(`server/ai.js`). The AI button only appears when a key is present.
+Configure the AI in the **Settings** page (admin, ⚙ in the toolbar) — pick a
+preset (OpenAI / Grok / Minimax / Anthropic) or a custom OpenAI/Anthropic-compatible
+endpoint, paste your key and **Test connection**. Env vars (below) still work as a
+fallback. The AI button only appears when a key is present; the key is stored in
+the DB and never returned raw by the API (masked on read).
+
+Retention (auto-purge old assessments) and user management also live in Settings.
 
 | Provider | Variables |
 |---|---|

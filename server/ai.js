@@ -12,27 +12,25 @@
 // The frontend's window.claude.complete({messages}) is mapped to whichever
 // provider is configured, so the app code stays untouched.
 
+// Settings come from the DB (set in the Settings UI) with env vars as fallback.
 function resolveConfig() {
-  let provider = (process.env.AI_PROVIDER || '').toLowerCase();
-  const anthropicKey = process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY;
-  const openaiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  let db; try { db = require('./db'); } catch (_) { db = null; }
+  const s = (k) => (db && db.getSetting ? db.getSetting(k) : null);
+  const provGet = () => (s('ai_provider') || process.env.AI_PROVIDER || '').toLowerCase();
+  const key = s('ai_api_key') || process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '';
+  let provider = provGet();
   if (!provider) {
-    if (process.env.ANTHROPIC_API_KEY) provider = 'anthropic';
+    if (s('ai_api_key')) provider = 'openai';
+    else if (process.env.ANTHROPIC_API_KEY) provider = 'anthropic';
     else if (process.env.OPENAI_API_KEY) provider = 'openai';
   }
+  const baseUrl = s('ai_base_url') || process.env.AI_BASE_URL || '';
+  const model = s('ai_model') || process.env.AI_MODEL || '';
   if (provider === 'anthropic') {
-    return {
-      provider, key: anthropicKey,
-      baseUrl: (process.env.AI_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, ''),
-      model: process.env.AI_MODEL || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
-    };
+    return { provider, key, baseUrl: (baseUrl || 'https://api.anthropic.com').replace(/\/+$/, ''), model: model || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6' };
   }
   if (provider === 'openai') {
-    return {
-      provider, key: openaiKey,
-      baseUrl: (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-      model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    };
+    return { provider, key, baseUrl: (baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, ''), model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini' };
   }
   return { provider: null, key: null };
 }

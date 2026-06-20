@@ -99,6 +99,38 @@ app.delete('/api/users/:id', auth.requireAdmin, wrap((req, res) => {
   res.json({ deleted: db.deleteUser(req.params.id) });
 }));
 
+// ---- settings (admin): AI config (BYOK) + retention ----
+const AI_FIELDS = ['ai_provider', 'ai_base_url', 'ai_model', 'ai_preset'];
+app.get('/api/settings', auth.requireAdmin, (req, res) => {
+  const key = db.getSetting('ai_api_key') || '';
+  res.json({
+    ai_provider: db.getSetting('ai_provider') || '',
+    ai_base_url: db.getSetting('ai_base_url') || '',
+    ai_model: db.getSetting('ai_model') || '',
+    ai_preset: db.getSetting('ai_preset') || '',
+    ai_api_key_set: !!key,
+    ai_api_key_hint: key ? '••••' + key.slice(-4) : '',
+    ai_enabled: ai.isEnabled(),
+    ai_provider_active: ai.isEnabled() ? ai.providerName() : null,
+    retention_days: Number(db.getSetting('retention_days') || 0),
+  });
+});
+app.put('/api/settings', auth.requireAdmin, wrap((req, res) => {
+  const b = req.body || {};
+  for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
+  if (b.clear_api_key) db.setSetting('ai_api_key', '');
+  else if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) db.setSetting('ai_api_key', b.ai_api_key.trim());
+  if (b.retention_days != null) db.setSetting('retention_days', String(Math.max(0, parseInt(b.retention_days, 10) || 0)));
+  res.json({ ok: true, ai_enabled: ai.isEnabled() });
+}));
+app.post('/api/settings/test-ai', auth.requireAdmin, wrap(async (req, res) => {
+  if (!ai.isEnabled()) return res.status(400).json({ ok: false, error: 'no provider/key configured' });
+  try {
+    const t = await ai.complete([{ role: 'user', content: 'Reply with exactly: OK' }]);
+    res.json({ ok: true, provider: ai.providerName(), reply: String(t || '').slice(0, 80) });
+  } catch (e) { res.status(502).json({ ok: false, error: e.message }); }
+}));
+
 // ---- everything below requires authentication (session cookie or API token) ----
 ['/api/assessments', '/api/report', '/api/backup', '/api/restore', '/api/ai', '/mcp', '/acp'].forEach((p) => app.use(p, auth.requireAuth));
 
@@ -202,5 +234,16 @@ app.use('/acp', require('./acp-comm').router);
 
 // ---- static frontend ----
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// ---- retention: purge assessments older than the configured window ----
+function runRetention() {
+  const days = Number(db.getSetting('retention_days') || 0);
+  if (!days) return;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  const r = db.db.prepare('DELETE FROM assessments WHERE updated_at < ?').run(cutoff);
+  if (r.changes) console.log(`retention: removed ${r.changes} assessment(s) older than ${days}d`);
+}
+runRetention();
+setInterval(runRetention, 24 * 60 * 60 * 1000).unref();
 
 app.listen(PORT, () => console.log(`Okami SAMM listening on http://localhost:${PORT}`));

@@ -176,6 +176,7 @@
       who.textContent = USER.username + (USER.role === 'admin' ? ' · admin' : '');
       who.style.cssText = 'display:flex;align-items:center;padding:0 12px;color:#6c6d80;font-size:10px;letter-spacing:.06em;';
       bar.appendChild(who);
+      if (USER.role === 'admin') bar.appendChild(btn('⚙ ' + t('settings'), '#2a2b3a', function () { location.href = '/settings.html'; }));
     }
     bar.appendChild(btn(t('newA'), '#cf3d8a', newAssessment));
     bar.appendChild(btn('☁ ' + t('save'), '#57C7D8', saveServer));

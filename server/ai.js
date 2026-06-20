@@ -94,4 +94,65 @@ async function complete(messages) {
   return cfg.provider === 'anthropic' ? callAnthropic(cfg, messages) : callOpenAI(cfg, messages);
 }
 
-module.exports = { complete, isEnabled, providerName };
+// ---- agent loop: let the model call SAMM tools to fulfill a natural-language task ----
+// tools: [{ name, description, input_schema(JSONSchema) }]; execute: (name,args)=>Promise(result)
+// onStep(optional): ({ tool, args, result }) for progress. Returns the final assistant text.
+async function runAgent({ system, userText, tools, execute, onStep, maxSteps = 8 }) {
+  const cfg = resolveConfig();
+  if (!cfg.provider || !cfg.key) { const e = new Error('AI disabled'); e.code = 'AI_DISABLED'; throw e; }
+  return cfg.provider === 'anthropic'
+    ? agentAnthropic(cfg, { system, userText, tools, execute, onStep, maxSteps })
+    : agentOpenAI(cfg, { system, userText, tools, execute, onStep, maxSteps });
+}
+
+async function agentAnthropic(cfg, { system, userText, tools, execute, onStep, maxSteps }) {
+  const toolDefs = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema || { type: 'object' } }));
+  const messages = [{ role: 'user', content: userText }];
+  let text = '';
+  for (let step = 0; step < maxSteps; step++) {
+    const body = { model: cfg.model, max_tokens: 2000, messages, tools: toolDefs };
+    if (system) body.system = system;
+    const res = await fetch(`${cfg.baseUrl}/v1/messages`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(body) });
+    if (!res.ok) throw upstream(res.status, await res.text().catch(() => ''));
+    const data = await res.json();
+    text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const toolUses = (data.content || []).filter((b) => b.type === 'tool_use');
+    if (!toolUses.length || data.stop_reason !== 'tool_use') return text;
+    messages.push({ role: 'assistant', content: data.content });
+    const results = [];
+    for (const tu of toolUses) {
+      let out; try { out = await execute(tu.name, tu.input || {}); } catch (e) { out = { error: e.message }; }
+      if (onStep) onStep({ tool: tu.name, args: tu.input, result: out });
+      results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) });
+    }
+    messages.push({ role: 'user', content: results });
+  }
+  return text;
+}
+
+async function agentOpenAI(cfg, { system, userText, tools, execute, onStep, maxSteps }) {
+  const toolDefs = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema || { type: 'object' } } }));
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: userText });
+  let text = '';
+  for (let step = 0; step < maxSteps; step++) {
+    const res = await fetch(`${cfg.baseUrl}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.key}` }, body: JSON.stringify({ model: cfg.model, max_tokens: 2000, messages, tools: toolDefs }) });
+    if (!res.ok) throw upstream(res.status, await res.text().catch(() => ''));
+    const data = await res.json();
+    const m = data.choices && data.choices[0] && data.choices[0].message;
+    text = (m && m.content) || text;
+    const calls = (m && m.tool_calls) || [];
+    if (!calls.length) return text;
+    messages.push(m);
+    for (const c of calls) {
+      let args = {}; try { args = JSON.parse(c.function.arguments || '{}'); } catch (_) {}
+      let out; try { out = await execute(c.function.name, args); } catch (e) { out = { error: e.message }; }
+      if (onStep) onStep({ tool: c.function.name, args, result: out });
+      messages.push({ role: 'tool', tool_call_id: c.id, content: JSON.stringify(out) });
+    }
+  }
+  return text;
+}
+
+module.exports = { complete, isEnabled, providerName, runAgent };

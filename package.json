@@ -9,6 +9,7 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "mcp": "node server/mcp-stdio.js",
+    "acp": "node server/acp-client-stdio.js",
     "test": "node tests/run.js",
     "postinstall": "node -e \"try{require('playwright').chromium}catch(e){}\"",
     "browser": "playwright install chromium"

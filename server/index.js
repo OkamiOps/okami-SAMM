@@ -143,6 +143,9 @@ app.post('/mcp', wrap(async (req, res) => {
 app.get('/mcp', (req, res) => res.status(405).json({ error: 'Method Not Allowed (stateless MCP — use POST)' }));
 app.delete('/mcp', (req, res) => res.status(405).json({ error: 'Method Not Allowed' }));
 
+// ---- Agent Communication Protocol (REST) — agent-to-agent at /acp ----
+app.use('/acp', require('./acp-comm').router);
+
 // ---- static frontend ----
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

@@ -24,7 +24,7 @@ export a polished, Okami-branded PDF report.
 - **SQLite persistence** — save client assessments on the server, list them, reload and re-report.
 - **Okami-branded PDF** — a multi-page report: cover, contents, executive summary, methodology, per-function findings, prioritized roadmap with concrete actions, maturity evolution (when snapshots exist), conclusion and an assessment-notes appendix.
 - **Bilingual** — full English/Portuguese UI and reports.
-- **AI-operable (MCP)** — AI agents can read **and operate** the system over MCP (HTTP + stdio): create assessments, answer questions, score, plan and report.
+- **AI-operable (MCP + ACP)** — AI agents read **and operate** the system over **MCP** (HTTP + stdio) and both **ACP** protocols (Agent Communication + Agent Client): create assessments, answer questions, score, plan and report.
 - **Self-contained** — React is vendored locally; the app renders even offline / behind CSP.
 
 ---
@@ -188,6 +188,43 @@ claude mcp add okami-samm -- node /abs/path/okami-samm/server/mcp-stdio.js   # l
 > The MCP endpoint has **full read/write** access (same as the REST API). If you
 > expose `/mcp` to the internet, put it behind a reverse proxy with auth / a VPN.
 
+## 🤝 ACP — agent interoperability
+
+Beyond MCP, the system also speaks both protocols called **ACP** (same operations
+underneath, in `server/operations.js`):
+
+**Agent *Communication* Protocol** (REST, agent-to-agent) — mounted at `/acp`:
+
+```bash
+curl http://localhost:3000/acp/agents                    # discover the samm-operator agent
+curl -X POST http://localhost:3000/acp/runs -H 'content-type: application/json' -d '{
+  "agent_name": "samm-operator",
+  "input": [{ "parts": [{ "content_type": "application/json",
+              "content": "{\"tool\":\"create_assessment\",\"args\":{\"org\":\"ACME\"}}" }] }] }'
+```
+
+The run completes synchronously; the output message carries the JSON result.
+`{"tool":"help"}` lists the available tools.
+
+**Agent *Client* Protocol** (Zed, JSON-RPC over stdio) — `node server/acp-client-stdio.js`.
+In Zed's `settings.json`:
+
+```json
+{
+  "agent_servers": {
+    "Okami SAMM": {
+      "command": "node",
+      "args": ["/abs/path/okami-samm/server/acp-client-stdio.js"],
+      "env": { "DB_PATH": "/abs/path/okami-samm/data/okami-samm.db" }
+    }
+  }
+}
+```
+
+Drive it with `/<tool> {args}` commands (e.g. `/create_assessment {"org":"ACME"}`,
+`/help`) or, when an AI provider is configured, with plain natural language — the
+agent runs an LLM tool-calling loop over the SAMM operations.
+
 ## 🗄️ Database
 
 SQLite at `DB_PATH` (default `./data/okami-samm.db`, created automatically, WAL
@@ -246,7 +283,10 @@ Or set `BACKEND_URL` via **Pages → Settings → Variables**.
 
 ```
 server/    Express, SQLite, scoring, AI proxy and PDF generation
-  mcp.js + mcp-stdio.js   MCP server (tools/resources) + stdio entry
+  operations.js      single source of truth for all operations (MCP + ACP share it)
+  mcp.js + mcp-stdio.js          MCP server (tools/resources) + stdio entry
+  acp-comm.js                    Agent Communication Protocol (REST, /acp)
+  acp-client.js + acp-client-stdio.js   Agent Client Protocol (Zed, stdio)
   data/samm.json     OWASP SAMM model (extracted from the app)
   report/            render.js (Okami HTML) + pdf.js (Playwright) + styles.js + fonts.css
 public/    standalone SAMM app + app-bridge.js + vendor/ (React)

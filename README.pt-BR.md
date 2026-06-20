@@ -179,8 +179,11 @@ chave fica no banco e nunca é retornada crua pela API (mascarada na leitura).
 **login device-code embutido** em Settings — clique *Sign in with …*, abra a URL
 mostrada, digite o código, e o servidor guarda + renova o token sozinho. Sem API
 key, sem gateway externo, nada pra instalar (validado contra os providers reais). O
-**OpenAI/Codex** não permite o grant device-code (o login dele é loopback em
-localhost e o token vai pro backend do ChatGPT) — use API key. A **Anthropic** não
+O **OpenAI/Codex** usa login **loopback em localhost** (o grant device-code é
+recusado): *Sign in with OpenAI* abre o auth.openai.com, o servidor captura o
+callback em `127.0.0.1:1455`, token no backend do ChatGPT (Responses API) — funciona
+**só com o app na mesma máquina do navegador** (não remoto/Docker), porta 1455 livre,
+backend experimental; senão, use API key. A **Anthropic** não
 é oferecida para login por assinatura de propósito — os Termos proíbem usar o token
 Pro/Max fora do Claude Code/Claude.ai (risco de ban); use API key. A orientação por
 provider aparece inline, e API style / Base URL só aparecem no provider **Custom**.

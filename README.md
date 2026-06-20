@@ -179,8 +179,12 @@ key is stored in the DB and never returned raw by the API (masked on read).
 have an embedded **device-code login** in Settings — click *Sign in with …*, open
 the shown URL, enter the code, and the server stores + auto-refreshes the token. No
 API key, no external gateway, nothing to install (validated against the real
-providers). **OpenAI/Codex** does not allow the device-code grant (its login is a
-localhost loopback and its token targets the ChatGPT backend) — use an API key.
+providers). **OpenAI/Codex** uses a **localhost loopback** login (the device-code grant is
+rejected): *Sign in with OpenAI* opens auth.openai.com, the server catches the
+callback on `127.0.0.1:1455`, and the token targets the ChatGPT backend (Responses
+API). It works **only when the app runs on the same machine as your browser** (not
+remote/Docker), with port 1455 free — and the backend path is experimental. If that
+doesn't fit, use an API key.
 **Anthropic** is intentionally not offered for subscription login — their Terms
 forbid using Pro/Max OAuth tokens outside Claude Code/Claude.ai (account-ban risk);
 use an API key. Each provider's guidance is shown inline in Settings, and API

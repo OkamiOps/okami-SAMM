@@ -6,6 +6,7 @@
 // Anthropic is intentionally absent: their Terms forbid using Pro/Max OAuth tokens
 // outside Claude Code / Claude.ai (account-ban risk) — use an API key for that.
 const crypto = require('crypto');
+const http = require('http');
 const db = require('./db');
 
 const PROVIDERS = {
@@ -30,18 +31,17 @@ const PROVIDERS = {
   },
   // OpenAI / Codex — Auth0 device flow; token used against the ChatGPT backend
   // (chatgpt.com/backend-api/codex) via the Responses API.
+  // OpenAI / Codex — the device-code grant is rejected (403); Codex uses a
+  // localhost loopback (127.0.0.1:1455). Works ONLY when the app runs on the same
+  // machine as your browser. Token targets the ChatGPT backend (Responses API).
   'openai-codex': {
-    label: 'OpenAI (Codex)', flavor: 'standard', preset: 'openai',
-    deviceUrl: 'https://auth0.openai.com/oauth/device/code',
-    tokenUrl: 'https://auth0.openai.com/oauth/token',
+    label: 'OpenAI (Codex)', flavor: 'loopback', preset: 'openai',
+    authorizeUrl: 'https://auth.openai.com/oauth/authorize',
+    tokenUrl: 'https://auth.openai.com/oauth/token',
+    redirectUri: 'http://localhost:1455/auth/callback',
     clientId: 'app_EMoamEEZ73f0CkXaXp7hrann',
     scope: 'openid profile email offline_access',
     apiProvider: 'openai-responses', apiBaseUrl: 'https://chatgpt.com/backend-api/codex', authHeader: 'bearer',
-    // The Codex client doesn't allow the device-code grant (returns 403) — it uses
-    // a localhost loopback flow, and its token targets the ChatGPT backend. Not
-    // offered as an embedded login; the Responses adapter in ai.js stays in case a
-    // token is supplied another way.
-    disabled: true,
   },
 };
 
@@ -60,6 +60,8 @@ const pkce = () => {
 async function startDevice(providerKey) {
   const p = PROVIDERS[providerKey];
   if (!p) { const e = new Error('OAuth not available for ' + providerKey); e.code = 'NO_PROVIDER'; throw e; }
+
+  if (p.flavor === 'loopback') return startLoopback(providerKey);
 
   if (p.flavor === 'minimax') {
     const k = pkce();
@@ -82,8 +84,44 @@ async function startDevice(providerKey) {
   };
 }
 
+// ---- loopback flow (OpenAI/Codex): localhost-only; binds 127.0.0.1:1455 ----
+let loopback = null;
+function closeLoopback() { if (loopback && loopback.server) { try { loopback.server.close(); } catch (_) {} } loopback = null; }
+async function startLoopback(providerKey) {
+  const p = PROVIDERS[providerKey];
+  closeLoopback();
+  const k = pkce();
+  loopback = { provider: providerKey, state: k.state, verifier: k.verifier, status: 'waiting', error: null, server: null };
+  await new Promise((resolve, reject) => {
+    const server = http.createServer(async (req, res) => {
+      try {
+        const u = new URL(req.url, 'http://localhost:1455');
+        if (u.pathname.indexOf('/auth/callback') !== 0) { res.writeHead(404); res.end(); return; }
+        const code = u.searchParams.get('code'); const state = u.searchParams.get('state');
+        if (!code || !loopback || state !== loopback.state) { if (loopback) { loopback.status = 'error'; loopback.error = 'state mismatch or no code'; } res.writeHead(400, { 'content-type': 'text/html' }); res.end('<h2>Login failed.</h2>'); return; }
+        const { data } = await formPost(p.tokenUrl, { grant_type: 'authorization_code', code, redirect_uri: p.redirectUri, client_id: p.clientId, code_verifier: loopback.verifier });
+        if (data.access_token) { saveTokens(providerKey, p, data); loopback.status = 'done'; res.writeHead(200, { 'content-type': 'text/html' }); res.end('<h2>Connected — you can close this tab and return to OKAMI.</h2>'); }
+        else { loopback.status = 'error'; loopback.error = data.error_description || data.error || 'token exchange failed'; res.writeHead(400, { 'content-type': 'text/html' }); res.end('<h2>Login failed.</h2>'); }
+      } catch (e) { if (loopback) { loopback.status = 'error'; loopback.error = e.message; } try { res.writeHead(500); res.end(); } catch (_) {} }
+      finally { setTimeout(closeLoopback, 800); }
+    });
+    server.on('error', (e) => { reject(new Error('cannot bind 127.0.0.1:1455 (' + e.code + ') — loopback login needs that port free and the app on the same machine as your browser')); });
+    server.listen(1455, '127.0.0.1', () => { if (loopback) loopback.server = server; resolve(); });
+  });
+  setTimeout(closeLoopback, 600000);
+  const authorize = p.authorizeUrl + '?' + new URLSearchParams({ response_type: 'code', client_id: p.clientId, redirect_uri: p.redirectUri, scope: p.scope, code_challenge: k.challenge, code_challenge_method: 'S256', state: k.state, id_token_add_organizations: 'true', codex_cli_simplified_flow: 'true', prompt: 'login' }).toString();
+  return { display: { authorize_url: authorize, expires_in: 600 }, ctx: { provider: providerKey, mode: 'loopback' } };
+}
+function pollLoopback() {
+  if (!loopback) return { error: 'no pending login' };
+  if (loopback.status === 'done') { closeLoopback(); return { ok: true }; }
+  if (loopback.status === 'error') { const msg = loopback.error; closeLoopback(); const e = new Error(msg); e.code = 'POLL_FAILED'; throw e; }
+  return { pending: true };
+}
+
 // Poll once → { ok:true } (persists tokens) | { pending:true } | throws.
 async function pollDevice(ctx) {
+  if (ctx.mode === 'loopback') return pollLoopback();
   const p = PROVIDERS[ctx.provider];
   if (p.flavor === 'minimax') {
     const { status, data } = await formPost(p.tokenUrl, { grant_type: p.grant, client_id: p.clientId, user_code: ctx.user_code, code_verifier: ctx.code_verifier });

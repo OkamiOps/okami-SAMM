@@ -76,10 +76,12 @@
       <button class="ok-btn cyan" id="oauthLogin" style="margin-top:6px;">Sign in</button>
       <button class="ok-ghost sm danger" id="oauthDisconnect" style="display:none;margin-left:8px;">Disconnect</button>
       <div id="oauthBox" style="display:none;margin-top:14px;border:1px solid var(--ok-line);background:var(--ok-bg-0);padding:14px;">
-        <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);">1. Open</div>
+        <div id="oauthOpenLabel" style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);">1. Open</div>
         <a id="oauthUrl" href="#" target="_blank" rel="noopener" style="color:var(--ok-cyan);word-break:break-all;font-family:var(--ok-mono);font-size:13px;"></a>
-        <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);margin-top:10px;">2. Enter code</div>
-        <div id="oauthCode" style="font-family:var(--ok-mono);font-weight:600;font-size:22px;letter-spacing:.18em;color:var(--ok-fg);"></div>
+        <div id="oauthCodeWrap">
+          <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);margin-top:10px;">2. Enter code</div>
+          <div id="oauthCode" style="font-family:var(--ok-mono);font-weight:600;font-size:22px;letter-spacing:.18em;color:var(--ok-fg);"></div>
+        </div>
         <div id="oauthStatus" class="ok-msg" style="margin-top:10px;color:var(--ok-cyan);">Waiting for authorization…</div>
       </div>
     </div>
@@ -180,8 +182,10 @@
     if (embedded) {
       var connected = SET.ai_oauth_provider === oauthKey;
       var nm = PRESET_LABEL[p] || p;
-      text = connected ? ('Signed in with your ' + nm + ' subscription — token auto-refreshes. No API cost.') : ('Sign in with your ' + nm + ' subscription (device-code login, no API key, no API cost).');
+      var caveat = (oauthKey === 'openai-codex') ? ' ⚠ Codex uses a localhost loopback — the app must run on THIS machine (not remote/Docker), port 1455 free; the ChatGPT backend is experimental here.' : '';
+      text = (connected ? ('Signed in with your ' + nm + ' subscription — token auto-refreshes. No API cost.') : ('Sign in with your ' + nm + ' subscription (no API key, no API cost).')) + caveat;
       $('oauthLogin').textContent = connected ? 'Re-sign in' : ('Sign in with ' + nm);
+      if (caveat) color = 'var(--ok-warning)';
       $('oauthDisconnect').style.display = connected ? 'inline-flex' : 'none';
     } else if (m === 'oauth') { var info = OAUTH[p] || OAUTH.custom; text = info.msg; color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
     if (text) { note.textContent = text; note.style.display = 'block'; note.style.color = color; note.style.borderLeftColor = color; }
@@ -193,12 +197,18 @@
     var r = await api('/api/settings/oauth/start', { method: 'POST', body: JSON.stringify({ provider: PRESET_OAUTH_KEY[$('preset').value] }) });
     if (r.status !== 200) { show($('aiMsg'), r.body.error || 'could not start login', false); return; }
     var d = r.body;
-    $('oauthUrl').textContent = d.verification_uri_complete || d.verification_uri;
-    $('oauthUrl').href = d.verification_uri_complete || d.verification_uri;
-    $('oauthCode').textContent = d.user_code || '';
+    var url = d.authorize_url || d.verification_uri_complete || d.verification_uri;
+    $('oauthUrl').textContent = url; $('oauthUrl').href = url;
+    if (d.authorize_url) {  // loopback (Codex): no code, just authorize in the opened tab
+      $('oauthOpenLabel').textContent = 'A sign-in tab opened — authorize there, then return here.';
+      $('oauthCodeWrap').style.display = 'none';
+    } else {
+      $('oauthOpenLabel').textContent = '1. Open'; $('oauthCodeWrap').style.display = 'block';
+      $('oauthCode').textContent = d.user_code || '';
+    }
     $('oauthStatus').textContent = 'Waiting for authorization…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
     $('oauthBox').style.display = 'block';
-    try { window.open(d.verification_uri_complete || d.verification_uri, '_blank', 'noopener'); } catch (e) {}
+    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
     poll(Math.max(2, d.interval || 5));
   });
   function poll(interval) {

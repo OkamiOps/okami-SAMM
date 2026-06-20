@@ -177,8 +177,9 @@ app.post('/api/settings/oauth/start', auth.requireAdmin, wrap(async (req, res) =
   } catch (e) { res.status(400).json({ error: e.message }); }
 }));
 app.post('/api/settings/oauth/manual', auth.requireAdmin, wrap(async (req, res) => {
+  const ctx = oauthPending.get(req.user.id);
   try {
-    await oauth.completeLoopbackManual((req.body || {}).url);
+    await oauth.completeLoopbackManual(ctx, (req.body || {}).url);
     oauthPending.delete(req.user.id);
     res.json({ status: 'done' });
   } catch (e) { res.status(400).json({ error: e.message }); }

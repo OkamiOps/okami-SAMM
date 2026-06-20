@@ -69,6 +69,18 @@
     <label class="ok-label">Base URL</label><input class="ok-input" id="baseUrl" placeholder="https://api.openai.com/v1">
     <label class="ok-label" id="keyLabel">API key <span id="keyHint" style="text-transform:none;letter-spacing:0;color:var(--ok-fg-mute);"></span></label>
     <input class="ok-input" id="apiKey" type="password" placeholder="paste a new key/token to change">
+    <!-- embedded OAuth device-code login -->
+    <div id="oauthLoginWrap" style="display:none;">
+      <button class="ok-btn cyan" id="oauthLogin" style="margin-top:6px;">Sign in</button>
+      <button class="ok-ghost sm danger" id="oauthDisconnect" style="display:none;margin-left:8px;">Disconnect</button>
+      <div id="oauthBox" style="display:none;margin-top:14px;border:1px solid var(--ok-line);background:var(--ok-bg-0);padding:14px;">
+        <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);">1. Open</div>
+        <a id="oauthUrl" href="#" target="_blank" rel="noopener" style="color:var(--ok-cyan);word-break:break-all;font-family:var(--ok-mono);font-size:13px;"></a>
+        <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);margin-top:10px;">2. Enter code</div>
+        <div id="oauthCode" style="font-family:var(--ok-mono);font-weight:600;font-size:22px;letter-spacing:.18em;color:var(--ok-fg);"></div>
+        <div id="oauthStatus" class="ok-msg" style="margin-top:10px;color:var(--ok-cyan);">Waiting for authorization…</div>
+      </div>
+    </div>
     <div class="actions">
       <button class="ok-btn" id="saveAi">Save AI</button>
       <button class="ok-btn cyan" id="testAi">Test connection</button>
@@ -130,6 +142,11 @@
     minimax:   { ok:true,  msg:'No web login link (Minimax OAuth is CLI-only). Log in via the Minimax CLI and paste the access token here — it is used as a bearer.' },
     custom:    { ok:true,  msg:'Paste an OAuth access token; it is sent as a bearer token to your endpoint.' },
   };
+  var PRESET_OAUTH_KEY = { grok: 'xai', minimax: 'minimax', openai: 'openai-codex' };
+  var PRESET_LABEL = { grok: 'Grok', minimax: 'Minimax', openai: 'OpenAI', anthropic: 'Anthropic', custom: 'Custom' };
+  var OAUTH_LOGIN = [];   // providers with embedded device-code login (from server)
+  var SET = {};           // last loaded settings
+  var pollTimer = null;
   var $ = function (id) { return document.getElementById(id); };
   async function api(path, opts) { opts = opts || {}; opts.headers = Object.assign({ 'content-type': 'application/json' }, opts.headers); var r = await fetch(path, opts); var b = await r.json().catch(function () { return {}; }); return { status: r.status, body: b }; }
   function show(el, msg, ok) { el.textContent = msg; el.className = 'ok-msg ' + (ok ? 'ok-ok' : 'ok-err'); }
@@ -147,12 +164,54 @@
   function toggleCustom() { $('modelCustom').style.display = $('model').value === '__other' ? 'block' : 'none'; }
   function applyAuthUI() {
     var p = $('preset').value, m = $('auth').value;
-    var info = OAUTH[p] || OAUTH.custom;
     var note = $('authNote');
+    var oauthKey = PRESET_OAUTH_KEY[p];
+    var embedded = m === 'oauth' && oauthKey && OAUTH_LOGIN.indexOf(oauthKey) !== -1;
+    stopPoll(); $('oauthBox').style.display = 'none';
+    $('oauthLoginWrap').style.display = embedded ? 'block' : 'none';
+    $('apiKey').style.display = embedded ? 'none' : 'block';
+    $('keyLabel').style.display = embedded ? 'none' : 'block';
     $('keyLabel').firstChild.textContent = (m === 'oauth' ? 'OAuth token ' : 'API key ');
-    if (m === 'oauth') { note.textContent = info.msg; note.style.display = 'block'; note.style.color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; note.style.borderLeftColor = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
+
+    var text = '', color = 'var(--ok-cyan)';
+    if (embedded) {
+      var connected = SET.ai_oauth_provider === oauthKey;
+      var nm = PRESET_LABEL[p] || p;
+      text = connected ? ('Signed in with your ' + nm + ' subscription — token auto-refreshes. No API cost.') : ('Sign in with your ' + nm + ' subscription (device-code login, no API key, no API cost).');
+      $('oauthLogin').textContent = connected ? 'Re-sign in' : ('Sign in with ' + nm);
+      $('oauthDisconnect').style.display = connected ? 'inline-flex' : 'none';
+    } else if (m === 'oauth') { var info = OAUTH[p] || OAUTH.custom; text = info.msg; color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
+    if (text) { note.textContent = text; note.style.display = 'block'; note.style.color = color; note.style.borderLeftColor = color; }
     else { note.style.display = 'none'; }
   }
+
+  function stopPoll() { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } }
+  $('oauthLogin').addEventListener('click', async function () {
+    var r = await api('/api/settings/oauth/start', { method: 'POST', body: JSON.stringify({ provider: PRESET_OAUTH_KEY[$('preset').value] }) });
+    if (r.status !== 200) { show($('aiMsg'), r.body.error || 'could not start login', false); return; }
+    var d = r.body;
+    $('oauthUrl').textContent = d.verification_uri_complete || d.verification_uri;
+    $('oauthUrl').href = d.verification_uri_complete || d.verification_uri;
+    $('oauthCode').textContent = d.user_code || '';
+    $('oauthStatus').textContent = 'Waiting for authorization…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
+    $('oauthBox').style.display = 'block';
+    try { window.open(d.verification_uri_complete || d.verification_uri, '_blank', 'noopener'); } catch (e) {}
+    poll(Math.max(2, d.interval || 5));
+  });
+  function poll(interval) {
+    stopPoll();
+    pollTimer = setTimeout(async function () {
+      var r = await api('/api/settings/oauth/poll', { method: 'POST', body: '{}' });
+      if (r.status === 200 && r.body.status === 'done') { $('oauthStatus').textContent = '✓ Connected'; $('oauthBox').style.display = 'none'; await loadSettings(); show($('aiMsg'), 'Signed in.', true); return; }
+      if (r.status === 200 && r.body.status === 'pending') { poll(interval); return; }
+      $('oauthStatus').textContent = '✗ ' + (r.body.error || 'failed'); $('oauthStatus').style.color = 'var(--ok-warning)';
+    }, interval * 1000);
+  }
+  $('oauthDisconnect').addEventListener('click', async function () {
+    if (!confirm('Disconnect this OAuth login?')) return;
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ clear_api_key: true, ai_oauth_provider: '' }) });
+    await loadSettings(); show($('aiMsg'), 'Disconnected.', true);
+  });
 
   (async function init() {
     var me = await api('/api/auth/me');
@@ -166,6 +225,7 @@
 
   async function loadSettings() {
     var s = (await api('/api/settings')).body;
+    SET = s; OAUTH_LOGIN = s.oauth_login_providers || [];
     var preset = s.ai_preset || 'openai';
     $('preset').value = preset;
     $('auth').value = s.ai_auth_method || 'api_key';

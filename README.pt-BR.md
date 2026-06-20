@@ -175,12 +175,14 @@ token**, carregue a **lista de modelos** direto do provider (↻), cole a creden
 e use **Test connection**. As variáveis de env (abaixo) seguem como fallback. A
 chave fica no banco e nunca é retornada crua pela API (mascarada na leitura).
 
-**Sobre OAuth:** providers OpenAI-compatíveis (Grok, Minimax, custom) aceitam um
-token OAuth usado como bearer — cole o token do login do provider. **OpenAI**
-(Sign in with ChatGPT / Codex) usa outro endpoint e só funciona dentro do Codex, e
-o OAuth da **Anthropic** (Claude Pro/Max) é restrito ao Claude Code/Claude.ai pelos
-Termos — para esses dois, use API key. A tela de Settings mostra essa orientação
-por provider.
+**Entre com sua assinatura (sem custo de API):** para **Grok (xAI)** a tela de
+Settings tem um **login device-code embutido** — clique *Sign in with Grok*, abra a
+URL mostrada, digite o código, e o servidor guarda e renova o token sozinho. Sem
+API key, sem gateway externo, nada pra instalar. (Minimax e OpenAI/Codex usam o
+mesmo mecanismo device-code e estão sendo adicionados.) A **Anthropic** não é
+oferecida para login por assinatura de propósito — os Termos deles proíbem usar o
+token OAuth Pro/Max fora do Claude Code/Claude.ai (risco de banir a conta); use API
+key. A orientação por provider aparece inline em Settings.
 
 Retenção (purga automática de avaliações antigas) e gestão de usuários também
 ficam em Settings.

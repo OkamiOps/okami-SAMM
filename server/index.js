@@ -125,14 +125,18 @@ app.get('/api/settings', auth.requireAdmin, (req, res) => {
     ai_api_key_hint: key ? '••••' + key.slice(-4) : '',
     ai_enabled: ai.isEnabled(),
     ai_provider_active: ai.isEnabled() ? ai.providerName() : null,
+    ai_oauth_provider: db.getSetting('ai_oauth_provider') || null,
+    ai_oauth_expiry: db.getSetting('ai_oauth_expiry') || null,
+    oauth_login_providers: require('./oauth').available(),
     retention_days: Number(db.getSetting('retention_days') || 0),
   });
 });
 app.put('/api/settings', auth.requireAdmin, wrap((req, res) => {
   const b = req.body || {};
   for (const k of AI_FIELDS) if (typeof b[k] === 'string') db.setSetting(k, b[k].trim());
-  if (b.clear_api_key) db.setSetting('ai_api_key', '');
-  else if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) db.setSetting('ai_api_key', b.ai_api_key.trim());
+  const clearOAuth = () => { db.setSetting('ai_oauth_provider', ''); db.setSetting('ai_oauth_refresh', ''); db.setSetting('ai_oauth_expiry', ''); };
+  if (b.clear_api_key) { db.setSetting('ai_api_key', ''); clearOAuth(); }
+  else if (typeof b.ai_api_key === 'string' && b.ai_api_key.trim()) { db.setSetting('ai_api_key', b.ai_api_key.trim()); clearOAuth(); }  // manual key replaces any OAuth session
   if (b.retention_days != null) db.setSetting('retention_days', String(Math.max(0, parseInt(b.retention_days, 10) || 0)));
   res.json({ ok: true, ai_enabled: ai.isEnabled() });
 }));
@@ -159,6 +163,28 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
     const models = (data.data || data.models || []).map((m) => m.id || m.name).filter(Boolean).sort();
     res.json({ models });
   } catch (e) { res.status(502).json({ error: e.message }); }
+}));
+
+// ---- embedded OAuth (device-code) login — sign in with your subscription ----
+const oauth = require('./oauth');
+const oauthPending = new Map(); // userId -> { provider, device_code, expiresAt }
+app.post('/api/settings/oauth/start', auth.requireAdmin, wrap(async (req, res) => {
+  const provider = (req.body || {}).provider;
+  try {
+    const d = await oauth.startDevice(provider);
+    oauthPending.set(req.user.id, { provider, device_code: d.device_code, expiresAt: Date.now() + d.expires_in * 1000 });
+    res.json({ user_code: d.user_code, verification_uri: d.verification_uri, verification_uri_complete: d.verification_uri_complete, interval: d.interval, expires_in: d.expires_in });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+}));
+app.post('/api/settings/oauth/poll', auth.requireAdmin, wrap(async (req, res) => {
+  const pend = oauthPending.get(req.user.id);
+  if (!pend) return res.status(400).json({ error: 'no pending login — start again' });
+  if (Date.now() > pend.expiresAt) { oauthPending.delete(req.user.id); return res.status(400).json({ error: 'login expired — start again' }); }
+  try {
+    const r = await oauth.pollDevice(pend.provider, pend.device_code);
+    if (r.ok) { oauthPending.delete(req.user.id); return res.json({ status: 'done' }); }
+    res.json({ status: 'pending' });
+  } catch (e) { oauthPending.delete(req.user.id); res.status(400).json({ error: e.message }); }
 }));
 
 // ---- everything below requires authentication (session cookie or API token) ----

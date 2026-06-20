@@ -86,7 +86,11 @@ function upstream(status, detail) {
   return e;
 }
 
+// Refresh an OAuth access token if it's near expiry (no-op for API keys).
+async function maybeRefresh() { try { await require('./oauth').ensureFreshToken(); } catch (_) {} }
+
 async function complete(messages) {
+  await maybeRefresh();
   const cfg = resolveConfig();
   if (!cfg.provider || !cfg.key) { const e = new Error('AI disabled'); e.code = 'AI_DISABLED'; throw e; }
   return cfg.provider === 'anthropic' ? callAnthropic(cfg, messages) : callOpenAI(cfg, messages);
@@ -96,6 +100,7 @@ async function complete(messages) {
 // tools: [{ name, description, input_schema(JSONSchema) }]; execute: (name,args)=>Promise(result)
 // onStep(optional): ({ tool, args, result }) for progress. Returns the final assistant text.
 async function runAgent({ system, userText, tools, execute, onStep, maxSteps = 8 }) {
+  await maybeRefresh();
   const cfg = resolveConfig();
   if (!cfg.provider || !cfg.key) { const e = new Error('AI disabled'); e.code = 'AI_DISABLED'; throw e; }
   return cfg.provider === 'anthropic'

@@ -173,6 +173,7 @@ async function pollDevice(ctx) {
 
 function persist(providerKey, p, accessToken, refreshToken, expirySec) {
   db.setSetting('ai_api_key', accessToken);
+  db.setSetting('ai_model', ''); // drop any model from a previous provider (e.g. MiniMax)
   db.setSetting('ai_oauth_provider', providerKey);
   db.setSetting('ai_oauth_refresh', refreshToken || '');
   db.setSetting('ai_oauth_expiry', new Date(Date.now() + Math.max(60, expirySec) * 1000).toISOString());

@@ -150,10 +150,17 @@ app.post('/api/settings/test-ai', auth.requireAdmin, wrap(async (req, res) => {
 // Load the model list from the provider (so users don't have to type model ids).
 app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
   const b = req.body || {};
-  const provider = b.ai_provider || db.getSetting('ai_provider') || 'openai';
+  const savedProvider = db.getSetting('ai_provider') || '';
+  const provider = b.ai_provider || savedProvider || 'openai';
   const baseUrl = (b.ai_base_url || db.getSetting('ai_base_url') || (provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
   const key = (b.ai_api_key && b.ai_api_key.trim()) || db.getSetting('ai_api_key') || '';
   if (!key) return res.status(400).json({ error: 'enter an API key / token first' });
+  // The ChatGPT/Codex backend has no /models endpoint — return the known set.
+  // Trigger on the saved provider too: the UI sends the preset's API style ("openai"),
+  // but a Codex sign-in actually runs as "openai-responses".
+  if (provider === 'openai-responses' || savedProvider === 'openai-responses') {
+    return res.json({ models: ['gpt-5', 'gpt-5-codex', 'gpt-5-mini', 'o3', 'o4-mini', 'codex-mini-latest'] });
+  }
   try {
     const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';
     const headers = provider === 'anthropic' ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' } : { authorization: 'Bearer ' + key };

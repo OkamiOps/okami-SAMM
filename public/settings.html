@@ -7,132 +7,148 @@
 <meta name="theme-color" content="#060609">
 <link rel="icon" href="./favicon.ico" sizes="any">
 <link rel="stylesheet" href="./fonts/fonts.css">
+<link rel="stylesheet" href="./okami-theme.css">
 <style>
-  :root{ --bg:#060609; --s1:#0b0b12; --s2:#11111b; --line:#1f1f2e; --soft:#b9bac8; --fg:#f4f4f8; --mute:#6c6d80;
-    --cyan:oklch(82% 0.14 200); --orange:oklch(72% 0.19 45); --magenta:oklch(70% 0.27 340); --green:oklch(78% 0.16 150); --red:oklch(65% 0.22 25);
-    --display:'Space Grotesk',system-ui,sans-serif; --mono:ui-monospace,Menlo,monospace; }
-  *{ box-sizing:border-box; }
-  body{ margin:0; min-height:100vh; font-family:var(--display); color:var(--fg); background:
-    radial-gradient(900px 500px at 8% -8%, color-mix(in oklch,var(--orange) 8%,transparent), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, color-mix(in oklch,var(--cyan) 7%,transparent), transparent 58%), var(--bg); }
-  header{ display:flex; align-items:center; gap:18px; padding:14px clamp(16px,4vw,40px); border-bottom:1px solid var(--line);
-    background:color-mix(in oklch,var(--bg) 88%,transparent); backdrop-filter:blur(14px); position:sticky; top:0; z-index:5; }
-  header img{ height:32px; }
-  header .sp{ flex:1; }
-  a.back, button.ghost{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--soft);
-    border:1px solid var(--line); background:transparent; padding:9px 14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  header{ display:flex; align-items:center; gap:18px; padding:14px clamp(16px,4vw,40px); border-bottom:1px solid var(--ok-line);
+    background:color-mix(in oklch,var(--ok-bg-0) 88%,transparent); backdrop-filter:blur(14px); position:sticky; top:0; z-index:5; }
+  header img{ height:32px; } header .sp{ flex:1; }
   main{ max-width:860px; margin:0 auto; padding:clamp(20px,3.5vw,40px) clamp(16px,4vw,40px) 80px; }
-  .card{ background:color-mix(in oklch,var(--s1) 80%,transparent); border:1px solid var(--line); padding:24px; margin:0 0 22px; }
-  h2{ font-weight:500; font-size:18px; margin:0 0 4px; display:flex; align-items:center; gap:10px; }
-  h2 .n{ font-family:var(--mono); font-size:12px; color:var(--cyan); }
-  p.lede{ color:var(--mute); font-size:12.5px; line-height:1.6; margin:0 0 18px; }
-  label{ display:block; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin:14px 0 6px; }
-  input,select{ width:100%; height:40px; padding:0 12px; background:var(--bg); border:1px solid var(--line); color:var(--fg); font-family:var(--mono); font-size:13px; outline:none; }
-  input:focus,select:focus{ border-color:var(--cyan); }
+  .card{ margin:0 0 22px; }
+  h2{ font-size:18px; margin:0 0 4px; display:flex; align-items:center; gap:10px; }
+  h2 .n{ font-family:var(--ok-mono); font-size:12px; color:var(--ok-cyan); }
+  p.lede{ color:var(--ok-fg-mute); font-size:12.5px; line-height:1.6; margin:0 0 14px; }
   .row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .actions{ display:flex; gap:10px; align-items:center; margin-top:18px; flex-wrap:wrap; }
-  button.primary{ height:42px; padding:0 20px; cursor:pointer; background:var(--orange); border:1px solid var(--orange); color:#0a0a0f; font-family:var(--display); font-weight:600; font-size:14px; }
-  button.primary.cy{ background:var(--cyan); border-color:var(--cyan); }
-  button.sm{ height:34px; padding:0 12px; font-size:12px; font-family:var(--mono); cursor:pointer; background:transparent; border:1px solid var(--line); color:var(--soft); }
-  button.sm.danger{ color:var(--red); border-color:color-mix(in oklch,var(--red) 50%,var(--line)); }
-  .msg{ font-family:var(--mono); font-size:12px; min-height:16px; }
-  .ok{ color:var(--green); } .err{ color:#e76; }
+  .note{ font-family:var(--ok-mono); font-size:11px; line-height:1.6; color:var(--ok-warning); border-left:2px solid var(--ok-warning); padding:6px 0 6px 12px; margin:8px 0; display:none; }
+  .modelrow{ display:flex; gap:8px; } .modelrow select{ flex:1; }
   table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }
-  td,th{ text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); }
-  th{ font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); }
-  .tok{ font-family:var(--mono); font-size:12px; color:var(--soft); word-break:break-all; background:var(--bg); border:1px solid var(--line); padding:10px 12px; }
-  .pill{ font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border:1px solid currentColor; }
-  .pill.admin{ color:var(--orange); } .pill.user{ color:var(--cyan); }
-  #denied{ max-width:480px; margin:80px auto; text-align:center; color:var(--soft); }
+  td,th{ text-align:left; padding:9px 8px; border-bottom:1px solid var(--ok-line); }
+  th{ font-family:var(--ok-mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--ok-fg-mute); }
+  .pill.admin{ color:var(--ok-orange); } .pill.user{ color:var(--ok-cyan); }
+  .tok{ font-family:var(--ok-mono); font-size:12px; color:var(--ok-fg-soft); word-break:break-all; background:var(--ok-bg-0); border:1px solid var(--ok-line); padding:10px 12px; }
+  #denied{ max-width:480px; margin:80px auto; text-align:center; color:var(--ok-fg-soft); }
 </style>
 </head>
 <body>
 <header>
   <img src="./assets/okami-maturity-on-dark.png" alt="OKAMI Maturity">
   <div class="sp"></div>
-  <a class="back" href="/">← Back to app</a>
+  <a class="ok-ghost" href="/">← Back to app</a>
 </header>
 
-<div id="denied" style="display:none;">Admin only. <a class="back" href="/">Back to app</a></div>
+<div id="denied" style="display:none;">Admin only. <a class="ok-ghost" href="/">Back to app</a></div>
 
 <main id="main" style="display:none;">
-  <h1 style="font-weight:500;font-size:26px;margin:6px 0 22px;">Settings</h1>
+  <h1 class="ok-h" style="font-size:26px;margin:6px 0 22px;">Settings</h1>
 
   <!-- AI -->
-  <section class="card">
-    <h2><span class="n">01</span> AI provider <span id="aiState" class="pill" style="color:var(--mute);">—</span></h2>
-    <p class="lede">Bring your own key. Pick a provider or use a custom OpenAI/Anthropic-compatible endpoint. The Roadmap's AI suggestions and the ACP natural-language mode use this.</p>
-    <label>Preset</label>
-    <select id="preset">
-      <option value="openai">OpenAI</option>
-      <option value="grok">Grok (xAI)</option>
-      <option value="minimax">Minimax</option>
-      <option value="anthropic">Anthropic</option>
-      <option value="custom">Custom</option>
-    </select>
+  <section class="card ok-card">
+    <h2 class="ok-h"><span class="n">01</span> AI provider <span id="aiState" class="ok-pill" style="color:var(--ok-fg-mute);">—</span></h2>
+    <p class="lede">Bring your own credentials. The Roadmap's AI suggestions and the ACP natural-language mode use this.</p>
     <div class="row">
-      <div><label>API style</label><select id="provider"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic</option></select></div>
-      <div><label>Model</label><input id="model" placeholder="gpt-4o-mini"></div>
+      <div><label class="ok-label">Provider</label>
+        <select class="ok-input" id="preset">
+          <option value="openai">OpenAI</option><option value="grok">Grok (xAI)</option>
+          <option value="minimax">Minimax</option><option value="anthropic">Anthropic</option>
+          <option value="custom">Custom</option>
+        </select></div>
+      <div><label class="ok-label">Auth method</label>
+        <select class="ok-input" id="auth"><option value="api_key">API key</option><option value="oauth">OAuth token</option></select></div>
     </div>
-    <label>Base URL</label><input id="baseUrl" placeholder="https://api.openai.com/v1">
-    <label>API key <span id="keyHint" style="text-transform:none;letter-spacing:0;color:var(--mute);"></span></label>
-    <input id="apiKey" type="password" placeholder="paste a new key to change">
+    <div class="note" id="authNote"></div>
+    <div class="row">
+      <div><label class="ok-label">API style</label><select class="ok-input" id="provider"><option value="openai">OpenAI-compatible</option><option value="anthropic">Anthropic</option></select></div>
+      <div><label class="ok-label">Model</label>
+        <div class="modelrow">
+          <select class="ok-input" id="model"></select>
+          <button class="ok-ghost sm" id="loadModels" title="Load models from the provider">↻</button>
+        </div>
+        <input class="ok-input" id="modelCustom" placeholder="model id" style="display:none;margin-top:8px;">
+      </div>
+    </div>
+    <label class="ok-label">Base URL</label><input class="ok-input" id="baseUrl" placeholder="https://api.openai.com/v1">
+    <label class="ok-label" id="keyLabel">API key <span id="keyHint" style="text-transform:none;letter-spacing:0;color:var(--ok-fg-mute);"></span></label>
+    <input class="ok-input" id="apiKey" type="password" placeholder="paste a new key/token to change">
     <div class="actions">
-      <button class="primary" id="saveAi">Save AI</button>
-      <button class="primary cy" id="testAi">Test connection</button>
-      <button class="sm danger" id="clearKey">Clear key</button>
-      <span class="msg" id="aiMsg"></span>
+      <button class="ok-btn" id="saveAi">Save AI</button>
+      <button class="ok-btn cyan" id="testAi">Test connection</button>
+      <button class="ok-ghost sm danger" id="clearKey">Clear key</button>
+      <span class="ok-msg" id="aiMsg"></span>
     </div>
   </section>
 
   <!-- Retention -->
-  <section class="card">
-    <h2><span class="n">02</span> Retention</h2>
-    <p class="lede">Automatically delete assessments that haven't been updated in this many days. <b>0 = keep forever</b> (recommended unless you have a reason).</p>
+  <section class="card ok-card">
+    <h2 class="ok-h"><span class="n">02</span> Retention</h2>
+    <p class="lede">Automatically delete assessments not updated in this many days. <b>0 = keep forever</b> (recommended).</p>
     <div class="row">
-      <div><label>Days (0 = disabled)</label><input id="retention" type="number" min="0" value="0"></div>
-      <div style="align-self:end;"><button class="primary" id="saveRet">Save retention</button></div>
+      <div><label class="ok-label">Days (0 = disabled)</label><input class="ok-input" id="retention" type="number" min="0" value="0"></div>
+      <div style="align-self:end;"><button class="ok-btn" id="saveRet">Save retention</button></div>
     </div>
-    <div class="msg" id="retMsg" style="margin-top:10px;"></div>
+    <div class="ok-msg" id="retMsg" style="margin-top:10px;"></div>
   </section>
 
   <!-- Users -->
-  <section class="card">
-    <h2><span class="n">03</span> Users</h2>
-    <p class="lede">Local accounts (shared workspace — everyone sees all assessments). Roles: admin manages settings &amp; users; user runs assessments.</p>
+  <section class="card ok-card">
+    <h2 class="ok-h"><span class="n">03</span> Users</h2>
+    <p class="lede">Local accounts (shared workspace). Roles: admin manages settings &amp; users; user runs assessments.</p>
     <table id="usersTbl"><thead><tr><th>User</th><th>Role</th><th></th></tr></thead><tbody></tbody></table>
-    <label style="margin-top:20px;">Add user</label>
-    <div class="row">
-      <input id="nuUser" placeholder="username">
-      <input id="nuPass" type="password" placeholder="password (min 6)">
-    </div>
+    <label class="ok-label" style="margin-top:20px;">Add user</label>
+    <div class="row"><input class="ok-input" id="nuUser" placeholder="username"><input class="ok-input" id="nuPass" type="password" placeholder="password (min 6)"></div>
     <div class="actions">
-      <select id="nuRole" style="width:160px;height:42px;"><option value="user">user</option><option value="admin">admin</option></select>
-      <button class="primary" id="addUser">Add user</button>
-      <span class="msg" id="userMsg"></span>
+      <select class="ok-input" id="nuRole" style="width:160px;"><option value="user">user</option><option value="admin">admin</option></select>
+      <button class="ok-btn" id="addUser">Add user</button><span class="ok-msg" id="userMsg"></span>
     </div>
   </section>
 
   <!-- API token -->
-  <section class="card">
-    <h2><span class="n">04</span> Your API token</h2>
-    <p class="lede">Agents (MCP / ACP) authenticate with this token: <code>Authorization: Bearer &lt;token&gt;</code>. Keep it secret. Rotating it invalidates the old one.</p>
+  <section class="card ok-card">
+    <h2 class="ok-h"><span class="n">04</span> Your API token</h2>
+    <p class="lede">Agents (MCP / ACP) authenticate with this: <code>Authorization: Bearer &lt;token&gt;</code>. Keep it secret.</p>
     <div class="tok" id="token">—</div>
-    <div class="actions"><button class="sm" id="copyTok">Copy</button><button class="sm danger" id="rotTok">Rotate token</button><span class="msg" id="tokMsg"></span></div>
+    <div class="actions"><button class="ok-ghost sm" id="copyTok">Copy</button><button class="ok-ghost sm danger" id="rotTok">Rotate token</button><span class="ok-msg" id="tokMsg"></span></div>
   </section>
 </main>
 
 <script>
   var PRESETS = {
-    openai:   { provider:'openai',    baseUrl:'https://api.openai.com/v1', model:'gpt-4o-mini' },
-    grok:     { provider:'openai',    baseUrl:'https://api.x.ai/v1',       model:'grok-2-latest' },
-    minimax:  { provider:'openai',    baseUrl:'https://api.minimax.io/v1', model:'MiniMax-Text-01' },
-    anthropic:{ provider:'anthropic', baseUrl:'https://api.anthropic.com', model:'claude-sonnet-4-6' },
-    custom:   null,
+    openai:   { provider:'openai',    baseUrl:'https://api.openai.com/v1', models:['gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini','o3','o4-mini'] },
+    grok:     { provider:'openai',    baseUrl:'https://api.x.ai/v1',       models:['grok-4','grok-3','grok-2-latest','grok-2-vision-latest'] },
+    minimax:  { provider:'openai',    baseUrl:'https://api.minimax.io/v1', models:['MiniMax-M2.5','MiniMax-Text-01','abab6.5s-chat'] },
+    anthropic:{ provider:'anthropic', baseUrl:'https://api.anthropic.com', models:['claude-opus-4-1','claude-sonnet-4-6','claude-haiku-4-5'] },
+    custom:   { provider:'openai',    baseUrl:'',                          models:[] },
+  };
+  // OAuth feasibility per provider (researched from their docs)
+  var OAUTH = {
+    openai:    { ok:false, msg:'OpenAI OAuth (Sign in with ChatGPT / Codex) targets a different endpoint and only ships inside Codex tooling — use an API key here.' },
+    anthropic: { ok:false, msg:'Anthropic OAuth (Claude Pro/Max) is restricted to Claude Code & Claude.ai by their Terms — use an API key from console.anthropic.com.' },
+    grok:      { ok:true,  msg:'Paste the OAuth access token from your Grok login (SuperGrok / X Premium). It is used as a bearer token.' },
+    minimax:   { ok:true,  msg:'Paste the OAuth access token from your Minimax login. It is used as a bearer token.' },
+    custom:    { ok:true,  msg:'Paste your OAuth access token; it is sent as a bearer token to your endpoint.' },
   };
   var $ = function (id) { return document.getElementById(id); };
   async function api(path, opts) { opts = opts || {}; opts.headers = Object.assign({ 'content-type': 'application/json' }, opts.headers); var r = await fetch(path, opts); var b = await r.json().catch(function () { return {}; }); return { status: r.status, body: b }; }
-  function show(el, msg, ok) { el.textContent = msg; el.className = 'msg ' + (ok ? 'ok' : 'err'); setTimeout(function () { if (el.textContent === msg) { el.textContent = ''; } }, 4000); }
+  function show(el, msg, ok) { el.textContent = msg; el.className = 'ok-msg ' + (ok ? 'ok-ok' : 'ok-err'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function fillModels(list, selected) {
+    var sel = $('model'); sel.innerHTML = '';
+    var seen = {};
+    (list || []).forEach(function (m) { if (!seen[m]) { seen[m] = 1; sel.appendChild(new Option(m, m)); } });
+    if (selected && !seen[selected]) sel.appendChild(new Option(selected, selected));
+    sel.appendChild(new Option('Other…', '__other'));
+    sel.value = selected && (seen[selected] || true) ? selected : (list && list[0]) || '__other';
+    toggleCustom();
+  }
+  function toggleCustom() { $('modelCustom').style.display = $('model').value === '__other' ? 'block' : 'none'; }
+  function applyAuthUI() {
+    var p = $('preset').value, m = $('auth').value;
+    var info = OAUTH[p] || OAUTH.custom;
+    var note = $('authNote');
+    $('keyLabel').firstChild.textContent = (m === 'oauth' ? 'OAuth token ' : 'API key ');
+    if (m === 'oauth') { note.textContent = info.msg; note.style.display = 'block'; note.style.color = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; note.style.borderLeftColor = info.ok ? 'var(--ok-cyan)' : 'var(--ok-warning)'; }
+    else { note.style.display = 'none'; }
+  }
 
   (async function init() {
     var me = await api('/api/auth/me');
@@ -146,34 +162,45 @@
 
   async function loadSettings() {
     var s = (await api('/api/settings')).body;
-    $('preset').value = s.ai_preset || 'openai';
+    var preset = s.ai_preset || 'openai';
+    $('preset').value = preset;
+    $('auth').value = s.ai_auth_method || 'api_key';
     $('provider').value = s.ai_provider || 'openai';
-    $('baseUrl').value = s.ai_base_url || '';
-    $('model').value = s.ai_model || '';
+    $('baseUrl').value = s.ai_base_url || (PRESETS[preset] ? PRESETS[preset].baseUrl : '');
+    var curated = (PRESETS[preset] || {}).models || [];
+    fillModels(curated, s.ai_model || '');
     $('keyHint').textContent = s.ai_api_key_set ? '(' + s.ai_api_key_hint + ' set)' : '(none)';
     $('retention').value = s.retention_days || 0;
-    var st = $('aiState');
-    st.textContent = s.ai_enabled ? ('on · ' + (s.ai_provider_active || '')) : 'off';
-    st.style.color = s.ai_enabled ? 'var(--green)' : 'var(--mute)';
+    var st = $('aiState'); st.textContent = s.ai_enabled ? ('on · ' + (s.ai_provider_active || '')) : 'off'; st.style.color = s.ai_enabled ? 'var(--ok-success)' : 'var(--ok-fg-mute)';
+    applyAuthUI();
   }
 
   $('preset').addEventListener('change', function () {
     var p = PRESETS[$('preset').value];
-    if (p) { $('provider').value = p.provider; $('baseUrl').value = p.baseUrl; $('model').value = p.model; }
+    if (p) { $('provider').value = p.provider; $('baseUrl').value = p.baseUrl; fillModels(p.models, ''); }
+    applyAuthUI();
+  });
+  $('auth').addEventListener('change', applyAuthUI);
+  $('model').addEventListener('change', toggleCustom);
+
+  $('loadModels').addEventListener('click', async function () {
+    show($('aiMsg'), 'Loading models…', true);
+    var body = { ai_provider: $('provider').value, ai_base_url: $('baseUrl').value };
+    if ($('apiKey').value.trim()) body.ai_api_key = $('apiKey').value.trim();
+    var r = await api('/api/settings/models', { method: 'POST', body: JSON.stringify(body) });
+    if (r.status === 200 && r.body.models && r.body.models.length) { fillModels(r.body.models, $('model').value !== '__other' ? $('model').value : ''); show($('aiMsg'), 'Loaded ' + r.body.models.length + ' models.', true); }
+    else show($('aiMsg'), r.body.error || 'Could not load models', false);
   });
 
+  function currentModel() { return $('model').value === '__other' ? $('modelCustom').value.trim() : $('model').value; }
   $('saveAi').addEventListener('click', async function () {
-    var body = { ai_preset: $('preset').value, ai_provider: $('provider').value, ai_base_url: $('baseUrl').value, ai_model: $('model').value };
+    var body = { ai_preset: $('preset').value, ai_auth_method: $('auth').value, ai_provider: $('provider').value, ai_base_url: $('baseUrl').value, ai_model: currentModel() };
     if ($('apiKey').value.trim()) body.ai_api_key = $('apiKey').value.trim();
     var r = await api('/api/settings', { method: 'PUT', body: JSON.stringify(body) });
     if (r.status === 200) { $('apiKey').value = ''; await loadSettings(); show($('aiMsg'), 'Saved.', true); }
     else show($('aiMsg'), r.body.error || 'Error', false);
   });
-  $('clearKey').addEventListener('click', async function () {
-    if (!confirm('Clear the stored API key?')) return;
-    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ clear_api_key: true }) });
-    $('apiKey').value = ''; await loadSettings(); show($('aiMsg'), 'Key cleared.', true);
-  });
+  $('clearKey').addEventListener('click', async function () { if (!confirm('Clear the stored key/token?')) return; await api('/api/settings', { method: 'PUT', body: JSON.stringify({ clear_api_key: true }) }); $('apiKey').value = ''; await loadSettings(); show($('aiMsg'), 'Cleared.', true); });
   $('testAi').addEventListener('click', async function () {
     show($('aiMsg'), 'Testing…', true);
     var r = await api('/api/settings/test-ai', { method: 'POST', body: '{}' });
@@ -181,21 +208,17 @@
     else show($('aiMsg'), '✗ ' + (r.body.error || 'failed'), false);
   });
 
-  $('saveRet').addEventListener('click', async function () {
-    var r = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ retention_days: $('retention').value }) });
-    show($('retMsg'), r.status === 200 ? 'Saved.' : (r.body.error || 'Error'), r.status === 200);
-  });
+  $('saveRet').addEventListener('click', async function () { var r = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ retention_days: $('retention').value }) }); show($('retMsg'), r.status === 200 ? 'Saved.' : (r.body.error || 'Error'), r.status === 200); });
 
   async function loadUsers() {
-    var users = (await api('/api/users')).body;
-    var me = (await api('/api/auth/me')).body;
+    var users = (await api('/api/users')).body, me = (await api('/api/auth/me')).body;
     var tb = $('usersTbl').querySelector('tbody'); tb.innerHTML = '';
     (users || []).forEach(function (u) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + esc(u.username) + (u.username === me.username ? ' <span style="color:var(--mute);">(you)</span>' : '') + '</td>'
-        + '<td><span class="pill ' + u.role + '">' + u.role + '</span></td>'
-        + '<td style="text-align:right;"><button class="sm" data-pw="' + u.id + '">Set password</button> '
-        + (u.username === me.username ? '' : '<button class="sm danger" data-del="' + u.id + '">Delete</button>') + '</td>';
+      tr.innerHTML = '<td>' + esc(u.username) + (u.username === me.username ? ' <span style="color:var(--ok-fg-mute);">(you)</span>' : '') + '</td>'
+        + '<td><span class="ok-pill ' + u.role + '">' + u.role + '</span></td>'
+        + '<td style="text-align:right;"><button class="ok-ghost sm" data-pw="' + u.id + '">Set password</button> '
+        + (u.username === me.username ? '' : '<button class="ok-ghost sm danger" data-del="' + u.id + '">Delete</button>') + '</td>';
       tb.appendChild(tr);
     });
     tb.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = async function () { if (!confirm('Delete this user?')) return; var r = await api('/api/users/' + b.getAttribute('data-del'), { method: 'DELETE' }); if (r.status !== 200) return show($('userMsg'), r.body.error || 'Error', false); loadUsers(); }; });
@@ -209,12 +232,7 @@
   });
 
   $('copyTok').addEventListener('click', function () { navigator.clipboard && navigator.clipboard.writeText($('token').textContent); show($('tokMsg'), 'Copied.', true); });
-  $('rotTok').addEventListener('click', async function () {
-    if (!confirm('Rotate your API token? Existing agent configs will stop working until updated.')) return;
-    var r = await api('/api/auth/token', { method: 'POST', body: '{}' });
-    if (r.status === 200) { $('token').textContent = r.body.apiToken; show($('tokMsg'), 'Rotated.', true); }
-  });
-  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  $('rotTok').addEventListener('click', async function () { if (!confirm('Rotate your API token? Existing agent configs stop working until updated.')) return; var r = await api('/api/auth/token', { method: 'POST', body: '{}' }); if (r.status === 200) { $('token').textContent = r.body.apiToken; show($('tokMsg'), 'Rotated.', true); } });
 </script>
 </body>
 </html>

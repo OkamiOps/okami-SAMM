@@ -170,10 +170,17 @@ question and advances, `↑/↓` move, `←/→` switch practice, `⌫` clears.
 ## 🤖 AI (multi-provider, optional)
 
 Configure the AI in the **Settings** page (admin, ⚙ in the toolbar) — pick a
-preset (OpenAI / Grok / Minimax / Anthropic) or a custom OpenAI/Anthropic-compatible
-endpoint, paste your key and **Test connection**. Env vars (below) still work as a
-fallback. The AI button only appears when a key is present; the key is stored in
-the DB and never returned raw by the API (masked on read).
+preset (OpenAI / Grok / Minimax / Anthropic / custom), choose **API key** or
+**OAuth token**, load the **model list** straight from the provider (↻), paste your
+credential and **Test connection**. Env vars (below) still work as a fallback. The
+key is stored in the DB and never returned raw by the API (masked on read).
+
+**On OAuth:** OpenAI-compatible providers (Grok, Minimax, custom) accept an OAuth
+access token used as a bearer — paste the token from your provider login. **OpenAI**
+(Sign in with ChatGPT / Codex) targets a different endpoint and only works inside
+Codex tooling, and **Anthropic** OAuth (Claude Pro/Max) is restricted to Claude
+Code/Claude.ai by their Terms — for those two, use an API key. The Settings page
+shows this guidance inline per provider.
 
 Retention (auto-purge old assessments) and user management also live in Settings.
 

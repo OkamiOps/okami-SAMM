@@ -21,9 +21,10 @@ function check(name, cond) { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); i
     let s = await get();
     check('defaults: AI off, retention 0', s.ai_enabled === false && s.retention_days === 0);
 
-    await put({ ai_preset: 'grok', ai_provider: 'openai', ai_base_url: 'https://api.x.ai/v1', ai_model: 'grok-2-latest', ai_api_key: 'sk-secret-abcd1234' });
+    await put({ ai_preset: 'grok', ai_auth_method: 'oauth', ai_provider: 'openai', ai_base_url: 'https://api.x.ai/v1', ai_model: 'grok-2-latest', ai_api_key: 'sk-secret-abcd1234' });
     s = await get();
     check('AI saved (provider/baseUrl/model)', s.ai_provider === 'openai' && s.ai_base_url === 'https://api.x.ai/v1' && s.ai_model === 'grok-2-latest' && s.ai_preset === 'grok');
+    check('auth method persisted', s.ai_auth_method === 'oauth');
     check('AI enabled after key set', s.ai_enabled === true);
     check('API key is masked, not returned raw', s.ai_api_key_set === true && /•+1234$/.test(s.ai_api_key_hint) && JSON.stringify(s).indexOf('sk-secret') === -1);
 
@@ -33,6 +34,9 @@ function check(name, cond) { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); i
     await put({ clear_api_key: true });
     s = await get();
     check('key cleared → AI off', s.ai_api_key_set === false && s.ai_enabled === false);
+
+    const noKey = await fetch(`${base}/api/settings/models`, { method: 'POST', headers: H, body: JSON.stringify({ ai_provider: 'openai' }) });
+    check('models endpoint requires a key (400)', noKey.status === 400);
 
     // non-admin blocked
     await fetch(`${base}/api/users`, { method: 'POST', headers: H, body: JSON.stringify({ username: 'bob', password: 'bob123', role: 'user' }) });

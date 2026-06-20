@@ -1,0 +1,52 @@
+/* Okami design system — shared by login.html and settings.html so the standalone
+   pages match the app exactly (same tokens, same background, same components). */
+:root{
+  --ok-bg-0:#060609; --ok-bg-1:#0b0b12; --ok-bg-2:#11111b; --ok-bg-3:#1a1a26;
+  --ok-line:#1f1f2e; --ok-line-soft:#15151f; --ok-grid:rgba(255,255,255,0.028);
+  --ok-fg:#f4f4f8; --ok-fg-soft:#b9bac8; --ok-fg-mute:#6c6d80; --ok-fg-dim:#3d3e50;
+  --ok-orange:oklch(72% 0.19 45); --ok-magenta:oklch(70% 0.27 340); --ok-cyan:oklch(82% 0.14 200);
+  --ok-success:oklch(78% 0.16 150); --ok-warning:oklch(82% 0.16 85); --ok-danger:oklch(65% 0.22 25);
+  --ok-accent:var(--ok-orange); --ok-glow:0.55;
+  --ok-display:'Space Grotesk',system-ui,sans-serif;
+  --ok-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{
+  min-height:100vh; color:var(--ok-fg); font-family:var(--ok-display);
+  background-color:var(--ok-bg-0);
+  background-image:
+    radial-gradient(820px 460px at 8% -8%,  color-mix(in oklch, var(--ok-orange) 9%, transparent), transparent 60%),
+    radial-gradient(820px 460px at 102% -2%, color-mix(in oklch, var(--ok-cyan) 7%, transparent), transparent 58%),
+    linear-gradient(90deg, var(--ok-grid) 1px, transparent 1px),
+    linear-gradient(var(--ok-grid) 1px, transparent 1px);
+  background-size:auto, auto, 64px 64px, 64px 64px;
+  background-attachment:fixed;
+}
+
+/* surfaces — opaque so they don't pick up the warm background glow */
+.ok-card{ background:var(--ok-bg-1); border:1px solid var(--ok-line); padding:24px; }
+.ok-kicker{ font-family:var(--ok-mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--ok-cyan); }
+.ok-h{ font-family:var(--ok-display); font-weight:500; letter-spacing:-.01em; }
+
+/* form controls */
+.ok-label{ display:block; font-family:var(--ok-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ok-fg-mute); margin:14px 0 6px; }
+.ok-input{ width:100%; height:40px; padding:0 12px; background:var(--ok-bg-0); border:1px solid var(--ok-line); color:var(--ok-fg); font-family:var(--ok-mono); font-size:13px; outline:none; }
+.ok-input:focus{ border-color:var(--ok-cyan); }
+select.ok-input{ height:40px; cursor:pointer; }
+
+/* buttons — match the app: solid accent for primary, hairline ghost for secondary */
+.ok-btn{ height:42px; padding:0 20px; cursor:pointer; font-family:var(--ok-display); font-weight:600; font-size:14px;
+  background:var(--ok-accent); border:1px solid var(--ok-accent); color:#0a0a0f;
+  box-shadow:0 0 calc(22px*var(--ok-glow)) color-mix(in oklch, var(--ok-accent) 50%, transparent); }
+.ok-btn.cyan{ --ok-accent:var(--ok-cyan); } .ok-btn.magenta{ --ok-accent:var(--ok-magenta); }
+.ok-btn:disabled{ opacity:.55; cursor:default; box-shadow:none; }
+.ok-ghost{ height:38px; padding:0 14px; cursor:pointer; background:transparent; border:1px solid var(--ok-line);
+  color:var(--ok-fg-soft); font-family:var(--ok-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; display:inline-flex; align-items:center; gap:6px; text-decoration:none; }
+.ok-ghost:hover{ background:var(--ok-bg-2); }
+.ok-ghost.sm{ height:34px; padding:0 12px; }
+.ok-ghost.danger{ color:var(--ok-danger); border-color:color-mix(in oklch, var(--ok-danger) 50%, var(--ok-line)); }
+
+.ok-msg{ font-family:var(--ok-mono); font-size:12px; }
+.ok-ok{ color:var(--ok-success); } .ok-err{ color:var(--ok-danger); }
+.ok-pill{ font-family:var(--ok-mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border:1px solid currentColor; }

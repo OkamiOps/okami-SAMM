@@ -170,10 +170,17 @@ em foco e avança, `↑/↓` navegam, `←/→` mudam de prática, `⌫` limpa.
 ## 🤖 IA (multi-provider, opcional)
 
 Configure a IA na tela de **Settings** (admin, ⚙ no toolbar) — escolha um preset
-(OpenAI / Grok / Minimax / Anthropic) ou um endpoint custom OpenAI/Anthropic-compatível,
-cole sua chave e use **Test connection**. As variáveis de env (abaixo) seguem como
-fallback. O botão de IA só aparece quando há chave; a chave fica no banco e nunca
-é retornada crua pela API (mascarada na leitura).
+(OpenAI / Grok / Minimax / Anthropic / custom), o método **API key** ou **OAuth
+token**, carregue a **lista de modelos** direto do provider (↻), cole a credencial
+e use **Test connection**. As variáveis de env (abaixo) seguem como fallback. A
+chave fica no banco e nunca é retornada crua pela API (mascarada na leitura).
+
+**Sobre OAuth:** providers OpenAI-compatíveis (Grok, Minimax, custom) aceitam um
+token OAuth usado como bearer — cole o token do login do provider. **OpenAI**
+(Sign in with ChatGPT / Codex) usa outro endpoint e só funciona dentro do Codex, e
+o OAuth da **Anthropic** (Claude Pro/Max) é restrito ao Claude Code/Claude.ai pelos
+Termos — para esses dois, use API key. A tela de Settings mostra essa orientação
+por provider.
 
 Retenção (purga automática de avaliações antigas) e gestão de usuários também
 ficam em Settings.

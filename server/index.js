@@ -112,7 +112,7 @@ app.delete('/api/users/:id', auth.requireAdmin, wrap((req, res) => {
 }));
 
 // ---- settings (admin): AI config (BYOK) + retention ----
-const AI_FIELDS = ['ai_provider', 'ai_base_url', 'ai_model', 'ai_preset'];
+const AI_FIELDS = ['ai_provider', 'ai_base_url', 'ai_model', 'ai_preset', 'ai_auth_method'];
 app.get('/api/settings', auth.requireAdmin, (req, res) => {
   const key = db.getSetting('ai_api_key') || '';
   res.json({
@@ -120,6 +120,7 @@ app.get('/api/settings', auth.requireAdmin, (req, res) => {
     ai_base_url: db.getSetting('ai_base_url') || '',
     ai_model: db.getSetting('ai_model') || '',
     ai_preset: db.getSetting('ai_preset') || '',
+    ai_auth_method: db.getSetting('ai_auth_method') || 'api_key',
     ai_api_key_set: !!key,
     ai_api_key_hint: key ? '••••' + key.slice(-4) : '',
     ai_enabled: ai.isEnabled(),
@@ -141,6 +142,23 @@ app.post('/api/settings/test-ai', auth.requireAdmin, wrap(async (req, res) => {
     const t = await ai.complete([{ role: 'user', content: 'Reply with exactly: OK' }]);
     res.json({ ok: true, provider: ai.providerName(), reply: String(t || '').slice(0, 80) });
   } catch (e) { res.status(502).json({ ok: false, error: e.message }); }
+}));
+// Load the model list from the provider (so users don't have to type model ids).
+app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
+  const b = req.body || {};
+  const provider = b.ai_provider || db.getSetting('ai_provider') || 'openai';
+  const baseUrl = (b.ai_base_url || db.getSetting('ai_base_url') || (provider === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
+  const key = (b.ai_api_key && b.ai_api_key.trim()) || db.getSetting('ai_api_key') || '';
+  if (!key) return res.status(400).json({ error: 'enter an API key / token first' });
+  try {
+    const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';
+    const headers = provider === 'anthropic' ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' } : { authorization: 'Bearer ' + key };
+    const r = await fetch(url, { headers });
+    if (!r.ok) return res.status(502).json({ error: `provider ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}` });
+    const data = await r.json();
+    const models = (data.data || data.models || []).map((m) => m.id || m.name).filter(Boolean).sort();
+    res.json({ models });
+  } catch (e) { res.status(502).json({ error: e.message }); }
 }));
 
 // ---- everything below requires authentication (session cookie or API token) ----

@@ -7,45 +7,33 @@
 <meta name="theme-color" content="#060609">
 <link rel="icon" href="./favicon.ico" sizes="any">
 <link rel="stylesheet" href="./fonts/fonts.css">
+<link rel="stylesheet" href="./okami-theme.css">
 <style>
-  :root{ --bg:#060609; --s1:#0b0b12; --line:#1f1f2e; --fg:#f4f4f8; --soft:#b9bac8; --mute:#6c6d80;
-    --cyan:oklch(82% 0.14 200); --orange:oklch(72% 0.19 45); --magenta:oklch(70% 0.27 340);
-    --display:'Space Grotesk',system-ui,sans-serif; --mono:ui-monospace,Menlo,monospace; }
-  *{ box-sizing:border-box; }
-  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
-    font-family:var(--display); color:var(--fg); background:
-      radial-gradient(820px 460px at 10% -8%, color-mix(in oklch,var(--orange) 9%, transparent), transparent 60%),
-      radial-gradient(820px 460px at 100% 0%, color-mix(in oklch,var(--cyan) 8%, transparent), transparent 58%),
-      var(--bg); }
-  .card{ width:min(400px,100%); background:color-mix(in oklch,var(--s1) 88%,transparent); border:1px solid var(--line); padding:34px 30px; box-shadow:0 30px 80px -30px rgba(0,0,0,.8); }
-  .logo{ height:30px; margin-bottom:26px; }
-  h1{ font-weight:500; font-size:20px; letter-spacing:-.01em; margin:0 0 4px; }
-  p.sub{ color:var(--mute); font-family:var(--mono); font-size:11px; letter-spacing:.06em; margin:0 0 22px; }
-  label{ display:block; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin:14px 0 6px; }
-  input{ width:100%; height:42px; padding:0 13px; background:var(--bg); border:1px solid var(--line); color:var(--fg); font-family:var(--mono); font-size:13px; outline:none; }
-  input:focus{ border-color:var(--cyan); }
-  button{ width:100%; height:46px; margin-top:22px; cursor:pointer; background:var(--orange); border:1px solid var(--orange); color:#0a0a0f; font-family:var(--display); font-weight:600; font-size:15px; }
-  button:disabled{ opacity:.6; cursor:default; }
-  .err{ margin-top:14px; color:#e76; font-family:var(--mono); font-size:12px; min-height:16px; }
+  body{ display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card{ width:min(400px,100%); padding:34px 30px; box-shadow:0 30px 80px -30px rgba(0,0,0,.8); }
+  .logo{ height:30px; margin-bottom:26px; display:block; }
+  h1{ font-size:20px; margin:0 0 4px; }
+  p.sub{ color:var(--ok-fg-mute); font-family:var(--ok-mono); font-size:11px; letter-spacing:.06em; margin:0 0 22px; }
+  button{ width:100%; margin-top:22px; }
+  .err{ margin-top:14px; min-height:16px; }
 </style>
 </head>
 <body>
-  <form class="card" id="form" autocomplete="on">
+  <form class="card ok-card" id="form" autocomplete="on">
     <img class="logo" src="./assets/okami-maturity-on-dark.png" alt="OKAMI Maturity">
-    <h1 id="title">Sign in</h1>
+    <h1 class="ok-h" id="title">Sign in</h1>
     <p class="sub" id="sub">// owasp samm v2 · maturity</p>
-    <label for="u">Username</label>
-    <input id="u" name="username" autocomplete="username" required>
-    <label for="p">Password</label>
-    <input id="p" name="password" type="password" autocomplete="current-password" required>
-    <button id="btn" type="submit">Sign in</button>
-    <div class="err" id="err"></div>
+    <label class="ok-label" for="u">Username</label>
+    <input class="ok-input" id="u" name="username" autocomplete="username" required>
+    <label class="ok-label" for="p">Password</label>
+    <input class="ok-input" id="p" name="password" type="password" autocomplete="current-password" required>
+    <button class="ok-btn" id="btn" type="submit">Sign in</button>
+    <div class="err ok-msg ok-err" id="err"></div>
   </form>
 <script>
   var setup = false;
-  var title = document.getElementById('title'), sub = document.getElementById('sub'),
-      btn = document.getElementById('btn'), err = document.getElementById('err'),
-      form = document.getElementById('form'), pw = document.getElementById('p');
+  var $ = function (id) { return document.getElementById(id); };
+  var title = $('title'), sub = $('sub'), btn = $('btn'), err = $('err'), form = $('form'), pw = $('p');
 
   fetch('/api/config').then(function (r) { return r.json(); }).then(function (c) {
     if (c && c.needsSetup) {
@@ -60,11 +48,9 @@
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     err.textContent = ''; btn.disabled = true;
-    var body = { username: document.getElementById('u').value.trim(), password: pw.value };
+    var body = { username: $('u').value.trim(), password: pw.value };
     try {
-      var res = await fetch(setup ? '/api/auth/setup' : '/api/auth/login', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-      });
+      var res = await fetch(setup ? '/api/auth/setup' : '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) { var d = await res.json().catch(function () { return {}; }); throw new Error(d.error || ('HTTP ' + res.status)); }
       location.replace('/');
     } catch (e2) { err.textContent = e2.message; btn.disabled = false; }

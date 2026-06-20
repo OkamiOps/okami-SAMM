@@ -4,12 +4,15 @@ const path = require('path');
 const { summarize, SAMM, practiceActions } = require('../score');
 
 const FONTS = (() => { try { return fs.readFileSync(path.join(__dirname, 'fonts.css'), 'utf8'); } catch (_) { return ''; } })();
-const LOGO = (() => {
-  for (const f of ['okami-logo-icon.png', 'okami-logo-outline.png']) {
+const asset = (...names) => {
+  for (const f of names) {
     try { return 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'assets', f)).toString('base64'); } catch (_) {}
   }
   return '';
-})();
+};
+const LOGO = asset('okami-logo-icon.png');                                 // icon (fallback)
+const LOGO_DARK = asset('okami-maturity-on-dark.png');                     // full wordmark, white text → dark bg
+const LOGO_LIGHT = asset('okami-maturity-on-light.png');                   // full wordmark, dark text → light bg
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const num = (n, d = 2) => Number(n).toFixed(d);
@@ -81,7 +84,10 @@ function bar(value, max, color) {
   return `<span class="bt"><span class="bf" style="width:${pct.toFixed(1)}%;background:${color};"></span></span>`;
 }
 function runHead(L) {
-  return `<div class="run-head"><div class="brand"><span class="chip">${LOGO ? `<img src="${LOGO}" alt="">` : ''}</span><b>OKAMI</b></div><div class="doc-ref">${esc(L.report)} · OWASP SAMM v2</div></div><div class="head-rule"></div>`;
+  const brand = LOGO_LIGHT
+    ? `<img src="${LOGO_LIGHT}" alt="OKAMI Maturity" style="height:15px;width:auto;display:block;">`
+    : `<div class="brand"><span class="chip">${LOGO ? `<img src="${LOGO}" alt="">` : ''}</span><b>OKAMI</b></div>`;
+  return `<div class="run-head">${brand}<div class="doc-ref">${esc(L.report)} · OWASP SAMM v2</div></div><div class="head-rule"></div>`;
 }
 function runFoot(L) { return `<div class="run-foot"><span class="conf">${L.classification}</span><span class="page-no"></span></div>`; }
 function sheet(L, headHtml, bodyHtml) { return `<section class="sheet wm-on">${runHead(L)}<div class="pad">${headHtml}${bodyHtml}</div>${runFoot(L)}</section>`; }
@@ -114,7 +120,7 @@ function coverPage(meta, S, L, gen) {
   const row = (k, v, cyan) => v ? `<div class="row"><span class="k">${k}</span><span class="v${cyan ? ' cyan' : ''}">${esc(v)}</span></div>` : '';
   const title = meta.org || meta.team || L.subtitle;
   return `<section class="sheet cover"><div class="pad">
-    <div class="cover-top"><div class="cover-logo">${LOGO ? `<img src="${LOGO}" alt="OKAMI">` : ''}<div class="wm">OKAMI<small>SECURITY MATURITY</small></div></div><div class="cover-class">${L.classification}</div></div>
+    <div class="cover-top">${LOGO_DARK ? `<img src="${LOGO_DARK}" alt="OKAMI Maturity" style="height:48px;width:auto;display:block;">` : `<div class="cover-logo">${LOGO ? `<img src="${LOGO}" alt="OKAMI">` : ''}<div class="wm">OKAMI<small>SECURITY MATURITY</small></div></div>`}<div class="cover-class">${L.classification}</div></div>
     <div class="cover-mid"><div class="cover-eyebrow">${esc(L.eyebrow)}</div>
       <h1>${esc(title)} <em>·</em> ${esc(L.report)}</h1><div class="cover-sub">${esc(L.subtitle)}</div>
       <div class="cover-meta">${row(L.org, meta.org)}${row(L.team, meta.team)}${row(L.date, meta.date)}${row(L.lead, meta.lead)}${row(L.contrib, meta.contrib)}

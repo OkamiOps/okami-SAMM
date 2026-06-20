@@ -111,20 +111,24 @@
 </main>
 
 <script>
+  // Provider presets — only endpoints. Models are loaded LIVE from the provider
+  // (the ↻ button / auto-load), never hardcoded, so the list is always current.
   var PRESETS = {
-    openai:   { provider:'openai',    baseUrl:'https://api.openai.com/v1', models:['gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini','o3','o4-mini'] },
-    grok:     { provider:'openai',    baseUrl:'https://api.x.ai/v1',       models:['grok-4','grok-3','grok-2-latest','grok-2-vision-latest'] },
-    minimax:  { provider:'openai',    baseUrl:'https://api.minimax.io/v1', models:['MiniMax-M2.5','MiniMax-Text-01','abab6.5s-chat'] },
-    anthropic:{ provider:'anthropic', baseUrl:'https://api.anthropic.com', models:['claude-opus-4-1','claude-sonnet-4-6','claude-haiku-4-5'] },
-    custom:   { provider:'openai',    baseUrl:'',                          models:[] },
+    openai:   { provider:'openai',    baseUrl:'https://api.openai.com/v1' },
+    grok:     { provider:'openai',    baseUrl:'https://api.x.ai/v1' },
+    minimax:  { provider:'openai',    baseUrl:'https://api.minimax.io/v1' },
+    anthropic:{ provider:'anthropic', baseUrl:'https://api.anthropic.com' },
+    custom:   { provider:'openai',    baseUrl:'' },
   };
-  // OAuth feasibility per provider (researched from their docs)
+  // OAuth feasibility per provider (researched from their docs + CLI sources).
+  // None of these providers offer a third-party "Login with X" web flow — their
+  // OAuth uses an embedded client_id + loopback callback reserved for their CLI.
   var OAUTH = {
-    openai:    { ok:false, msg:'OpenAI OAuth (Sign in with ChatGPT / Codex) targets a different endpoint and only ships inside Codex tooling — use an API key here.' },
-    anthropic: { ok:false, msg:'Anthropic OAuth (Claude Pro/Max) is restricted to Claude Code & Claude.ai by their Terms — use an API key from console.anthropic.com.' },
-    grok:      { ok:true,  msg:'Paste the OAuth access token from your Grok login (SuperGrok / X Premium). It is used as a bearer token.' },
-    minimax:   { ok:true,  msg:'Paste the OAuth access token from your Minimax login. It is used as a bearer token.' },
-    custom:    { ok:true,  msg:'Paste your OAuth access token; it is sent as a bearer token to your endpoint.' },
+    openai:    { ok:false, msg:'No web login: OpenAI OAuth (Sign in with ChatGPT / Codex) targets a different endpoint and only works inside Codex. Use an API key.' },
+    anthropic: { ok:false, msg:'No web login: Anthropic OAuth (Claude Pro/Max) is restricted to Claude Code & Claude.ai by their Terms. Use an API key from console.anthropic.com.' },
+    grok:      { ok:true,  msg:'No web login link (xAI OAuth is CLI-only). To use your SuperGrok / X Premium plan, run the xAI/Grok CLI login and paste the access token here — it is used as a bearer.' },
+    minimax:   { ok:true,  msg:'No web login link (Minimax OAuth is CLI-only). Log in via the Minimax CLI and paste the access token here — it is used as a bearer.' },
+    custom:    { ok:true,  msg:'Paste an OAuth access token; it is sent as a bearer token to your endpoint.' },
   };
   var $ = function (id) { return document.getElementById(id); };
   async function api(path, opts) { opts = opts || {}; opts.headers = Object.assign({ 'content-type': 'application/json' }, opts.headers); var r = await fetch(path, opts); var b = await r.json().catch(function () { return {}; }); return { status: r.status, body: b }; }
@@ -167,17 +171,22 @@
     $('auth').value = s.ai_auth_method || 'api_key';
     $('provider').value = s.ai_provider || 'openai';
     $('baseUrl').value = s.ai_base_url || (PRESETS[preset] ? PRESETS[preset].baseUrl : '');
-    var curated = (PRESETS[preset] || {}).models || [];
-    fillModels(curated, s.ai_model || '');
+    fillModels([], s.ai_model || '');
     $('keyHint').textContent = s.ai_api_key_set ? '(' + s.ai_api_key_hint + ' set)' : '(none)';
     $('retention').value = s.retention_days || 0;
     var st = $('aiState'); st.textContent = s.ai_enabled ? ('on · ' + (s.ai_provider_active || '')) : 'off'; st.style.color = s.ai_enabled ? 'var(--ok-success)' : 'var(--ok-fg-mute)';
     applyAuthUI();
+    if (s.ai_api_key_set) autoLoadModels(s.ai_model || '');  // live-load current models
+  }
+
+  async function autoLoadModels(keep) {
+    var r = await api('/api/settings/models', { method: 'POST', body: JSON.stringify({ ai_provider: $('provider').value, ai_base_url: $('baseUrl').value }) });
+    if (r.status === 200 && r.body.models && r.body.models.length) fillModels(r.body.models, keep || (currentModel() || ''));
   }
 
   $('preset').addEventListener('change', function () {
     var p = PRESETS[$('preset').value];
-    if (p) { $('provider').value = p.provider; $('baseUrl').value = p.baseUrl; fillModels(p.models, ''); }
+    if (p) { $('provider').value = p.provider; $('baseUrl').value = p.baseUrl; fillModels([], ''); }
     applyAuthUI();
   });
   $('auth').addEventListener('change', applyAuthUI);

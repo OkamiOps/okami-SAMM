@@ -45,6 +45,12 @@ function isEnabled() {
 }
 
 function providerName() {
+  // Prefer the friendly login name (Grok/Minimax/OpenAI) over the API style
+  // ('openai'/'anthropic') — Grok and Minimax share OpenAI/Anthropic API shapes.
+  try {
+    const ok = require('./db').getSetting('ai_oauth_provider');
+    if (ok) { const p = require('./oauth').PROVIDERS[ok]; if (p) return p.label; }
+  } catch (_) {}
   return resolveConfig().provider;
 }
 

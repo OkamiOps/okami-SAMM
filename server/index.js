@@ -179,7 +179,8 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
     const curated = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-chat', 'gpt-5'];
     try {
       const accountId = db.getSetting('ai_account_id') || '';
-      const r = await fetch('https://chatgpt.com/backend-api/models', { headers: { authorization: 'Bearer ' + key, 'chatgpt-account-id': accountId, originator: 'codex_cli_rs', accept: 'application/json' } });
+      const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 3000); // never hang the dropdown
+      const r = await fetch('https://chatgpt.com/backend-api/models', { headers: { authorization: 'Bearer ' + key, 'chatgpt-account-id': accountId, originator: 'codex_cli_rs', accept: 'application/json' }, signal: ac.signal }).finally(() => clearTimeout(t));
       if (r.ok) {
         const d = await r.json().catch(() => ({}));
         const live = (d.models || d.data || []).map((m) => m.slug || m.id || m.name).filter((x) => /^gpt-5\.\d/.test(x || ''));
@@ -190,13 +191,19 @@ app.post('/api/settings/models', auth.requireAdmin, wrap(async (req, res) => {
   }
   try {
     const url = provider === 'anthropic' ? baseUrl + '/v1/models' : baseUrl + '/models';
-    const headers = provider === 'anthropic' ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' } : { authorization: 'Bearer ' + key };
-    const r = await fetch(url, { headers });
+    // Respect the active auth header — Grok/Minimax OAuth tokens are Bearer even on
+    // the anthropic-shaped Minimax endpoint.
+    const authHeader = db.getSetting('ai_auth_header') || '';
+    const headers = provider === 'anthropic'
+      ? (authHeader === 'bearer' ? { authorization: 'Bearer ' + key, 'anthropic-version': '2023-06-01' } : { 'x-api-key': key, 'anthropic-version': '2023-06-01' })
+      : { authorization: 'Bearer ' + key };
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 6000); // never hang the dropdown
+    const r = await fetch(url, { headers, signal: ac.signal }).finally(() => clearTimeout(t));
     if (!r.ok) return res.status(502).json({ error: `provider ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}` });
     const data = await r.json();
     const models = (data.data || data.models || []).map((m) => m.id || m.name).filter(Boolean).sort();
     res.json({ models });
-  } catch (e) { res.status(502).json({ error: e.message }); }
+  } catch (e) { res.status(502).json({ error: e.code === 'ABORT_ERR' || /abort/i.test(e.message) ? 'provider timed out listing models — type the model id' : e.message }); }
 }));
 
 // ---- embedded OAuth (device-code) login — sign in with your subscription ----

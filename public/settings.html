@@ -193,7 +193,7 @@
       var nm = PRESET_LABEL[p] || p;
       var caveat = (oauthKey === 'openai-codex') ? ' Codex: authorize, then paste the URL OpenAI gives you back here. The ChatGPT backend is experimental.' : '';
       if (active) text = 'Signed in with your ' + nm + ' subscription (active) — token auto-refreshes. No API cost.';
-      else if (inVault) text = 'Already signed in with ' + nm + ' — click Save AI to switch to it (no re-auth).';
+      else if (inVault) text = 'Already signed in with ' + nm + ' — switched to it automatically (no re-auth).';
       else text = 'Sign in with your ' + nm + ' subscription (no API key, no API cost).';
       text += caveat;
       $('oauthLogin').textContent = inVault ? 'Re-sign in' : ('Sign in with ' + nm);
@@ -282,10 +282,19 @@
     if (r.status === 200 && r.body.models && r.body.models.length) fillModels(r.body.models, keep || (currentModel() || ''));
   }
 
-  $('preset').addEventListener('change', function () {
+  $('preset').addEventListener('change', async function () {
     var p = PRESETS[$('preset').value];
     if (p) { $('provider').value = p.provider; $('baseUrl').value = p.baseUrl; fillModels([], ''); }
     applyAuthUI();
+    // If this provider is already signed in (OAuth), switch to it immediately — no
+    // separate Save, no re-auth — and reload its model list + active state.
+    var key = PRESET_OAUTH_KEY[$('preset').value];
+    if ($('auth').value === 'oauth' && key && OAUTH_VAULT.indexOf(key) !== -1) {
+      $('aiState').textContent = 'switching…';
+      await api('/api/settings', { method: 'PUT', body: JSON.stringify({ ai_preset: $('preset').value, ai_auth_method: 'oauth' }) });
+      await loadSettings();
+      show($('aiMsg'), 'Switched to ' + (PRESET_LABEL[$('preset').value] || key) + '.', true);
+    }
   });
   $('auth').addEventListener('change', applyAuthUI);
   $('model').addEventListener('change', toggleCustom);

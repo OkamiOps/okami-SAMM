@@ -171,9 +171,21 @@ async function pollDevice(ctx) {
   const e = new Error(data.error_description || err || 'token poll failed'); e.code = 'POLL_FAILED'; throw e;
 }
 
+function decodeJwt(token) { try { return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8')); } catch (_) { return {}; } }
+// The ChatGPT/Codex backend requires a `chatgpt-account-id` header; it lives in the
+// token's `https://api.openai.com/auth` claim (access_token, else id_token).
+function codexAccountId(tok) {
+  for (const t of [tok.access_token, tok.id_token]) {
+    const claims = decodeJwt(t); const auth = claims['https://api.openai.com/auth'] || {};
+    if (auth.chatgpt_account_id) return auth.chatgpt_account_id;
+  }
+  return '';
+}
+
 function persist(providerKey, p, accessToken, refreshToken, expirySec) {
   db.setSetting('ai_api_key', accessToken);
   db.setSetting('ai_model', ''); // drop any model from a previous provider (e.g. MiniMax)
+  db.setSetting('ai_account_id', ''); // codex sets this below; clear for others
   db.setSetting('ai_oauth_provider', providerKey);
   db.setSetting('ai_oauth_refresh', refreshToken || '');
   db.setSetting('ai_oauth_expiry', new Date(Date.now() + Math.max(60, expirySec) * 1000).toISOString());
@@ -183,7 +195,10 @@ function persist(providerKey, p, accessToken, refreshToken, expirySec) {
   db.setSetting('ai_preset', p.preset);
   db.setSetting('ai_auth_method', 'oauth');
 }
-function saveTokens(providerKey, p, tok) { persist(providerKey, p, tok.access_token, tok.refresh_token, Number(tok.expires_in || 3600)); }
+function saveTokens(providerKey, p, tok) {
+  persist(providerKey, p, tok.access_token, tok.refresh_token, Number(tok.expires_in || 3600));
+  if (p.apiProvider === 'openai-responses') db.setSetting('ai_account_id', codexAccountId(tok));
+}
 function saveMinimax(providerKey, p, tok) {
   const raw = Number(tok.expired_in || 0); const now = Date.now();
   const sec = raw > now / 2 ? Math.round((raw - now) / 1000) : raw;

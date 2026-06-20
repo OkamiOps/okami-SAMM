@@ -87,18 +87,47 @@ async function callAnthropic(cfg, messages) {
 // OpenAI/Codex ChatGPT subscription backend (Responses API). Best-effort: the
 // Roadmap's text suggestions work; tool-calling (ACP NL) is not wired here.
 async function callCodexResponses(cfg, messages) {
+  const crypto = require('crypto');
+  let db; try { db = require('./db'); } catch (_) { db = null; }
+  let accountId = (db && db.getSetting && db.getSetting('ai_account_id')) || '';
+  if (!accountId && cfg.key) { // derive from the token if not stored (pre-fix logins)
+    try { const c = JSON.parse(Buffer.from(cfg.key.split('.')[1], 'base64url').toString('utf8')); accountId = (c['https://api.openai.com/auth'] || {}).chatgpt_account_id || ''; } catch (_) {}
+  }
   const { system, turns } = splitMessages(messages);
   const input = turns.map((m) => m.content).join('\n');
-  const body = { model: cfg.model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: false };
-  const res = await fetch(`${cfg.baseUrl}/responses`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key, originator: 'okami-samm', 'openai-beta': 'responses=experimental' },
-    body: JSON.stringify(body),
-  });
+  // The ChatGPT/Codex backend streams (SSE) and gates on Codex-CLI-like headers:
+  // a non-codex `originator`/User-Agent or a missing chatgpt-account-id gets a 403.
+  const body = { model: cfg.model, instructions: system || 'You are a helpful assistant.', input, store: false, stream: true };
+  const headers = {
+    'content-type': 'application/json',
+    accept: 'text/event-stream',
+    authorization: 'Bearer ' + cfg.key,
+    'openai-beta': 'responses=experimental',
+    originator: 'codex_cli_rs',
+    'user-agent': 'codex_cli_rs/0.21.0 (okami-samm)',
+    session_id: crypto.randomUUID(),
+  };
+  if (accountId) headers['chatgpt-account-id'] = accountId;
+  const res = await fetch(`${cfg.baseUrl}/responses`, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) throw upstream(res.status, await res.text().catch(() => ''));
-  const data = await res.json();
-  if (data.output_text) return data.output_text;
-  const out = (data.output || []).flatMap((o) => (o.content || [])).filter((c) => c.type === 'output_text' || c.text).map((c) => c.text).join('');
+  const raw = await res.text();
+  if (raw.indexOf('data:') === -1) { // non-stream JSON fallback
+    try { const d = JSON.parse(raw); return d.output_text || (d.output || []).flatMap((o) => (o.content || [])).map((c) => c.text).filter(Boolean).join(''); } catch (_) { return raw; }
+  }
+  let out = '';
+  for (const line of raw.split('\n')) {
+    const s = line.trim();
+    if (!s.startsWith('data:')) continue;
+    const payload = s.slice(5).trim();
+    if (!payload || payload === '[DONE]') continue;
+    try {
+      const ev = JSON.parse(payload);
+      if (ev.type === 'response.output_text.delta' && typeof ev.delta === 'string') out += ev.delta;
+      else if (ev.type === 'response.completed' && ev.response && !out) {
+        out = (ev.response.output || []).flatMap((o) => (o.content || [])).map((c) => c.text).filter(Boolean).join('');
+      }
+    } catch (_) {}
+  }
   return out;
 }
 

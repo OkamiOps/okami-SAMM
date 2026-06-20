@@ -22,7 +22,8 @@ if (CORS_ORIGIN) {
     if (CORS_ORIGIN === '*') res.setHeader('Access-Control-Allow-Origin', '*');
     else if (origin && allow.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    if (CORS_ORIGIN !== '*') res.setHeader('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
@@ -34,9 +35,72 @@ const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
   res.status(500).json({ error: e.message || 'internal error' });
 });
 
-// ---- health & config ----
+// ---- health & config (public) ----
 app.get('/healthz', (req, res) => res.json({ ok: true }));
-app.get('/api/config', (req, res) => res.json(publicConfig()));
+app.get('/api/config', (req, res) => res.json(Object.assign({ authEnabled: true, needsSetup: db.countUsers() === 0 }, publicConfig())));
+
+// ---- auth (public endpoints) ----
+const auth = require('./auth');
+
+app.post('/api/auth/setup', wrap((req, res) => {
+  if (db.countUsers() > 0) return res.status(403).json({ error: 'already set up' });
+  const { username, password } = req.body || {};
+  if (!username || !password || String(password).length < 6) return res.status(400).json({ error: 'username and password (min 6) required' });
+  const u = db.createUser({ username: String(username).trim(), password_hash: auth.hashPassword(password), role: 'admin', api_token: auth.newApiToken() });
+  auth.setSessionCookie(res, u);
+  res.status(201).json(db.userPublic(u));
+}));
+
+app.post('/api/auth/login', wrap((req, res) => {
+  const { username, password } = req.body || {};
+  const u = db.getUserByUsername(String(username || '').trim());
+  if (!u || !auth.verifyPassword(password, u.password_hash)) return res.status(401).json({ error: 'invalid credentials' });
+  auth.setSessionCookie(res, u);
+  res.json(db.userPublic(u));
+}));
+
+app.post('/api/auth/logout', (req, res) => { auth.clearSessionCookie(res); res.json({ ok: true }); });
+
+app.get('/api/auth/me', (req, res) => {
+  const u = auth.currentUser(req);
+  if (!u) return res.status(401).json({ error: 'not authenticated' });
+  res.json(Object.assign(db.userPublic(u), { apiToken: u.api_token }));
+});
+
+app.post('/api/auth/token', auth.requireAuth, wrap((req, res) => {
+  const tok = auth.newApiToken();
+  db.updateUser(req.user.id, { api_token: tok });
+  res.json({ apiToken: tok });
+}));
+
+// ---- user management (admin) ----
+app.get('/api/users', auth.requireAdmin, (req, res) => res.json(db.listUsers()));
+app.post('/api/users', auth.requireAdmin, wrap((req, res) => {
+  const { username, password, role } = req.body || {};
+  if (!username || !password || String(password).length < 6) return res.status(400).json({ error: 'username and password (min 6) required' });
+  if (db.getUserByUsername(String(username).trim())) return res.status(409).json({ error: 'username already exists' });
+  const u = db.createUser({ username: String(username).trim(), password_hash: auth.hashPassword(password), role: role === 'admin' ? 'admin' : 'user', api_token: auth.newApiToken() });
+  res.status(201).json(db.userPublic(u));
+}));
+app.put('/api/users/:id', auth.requireAdmin, wrap((req, res) => {
+  const u = db.getUserById(req.params.id);
+  if (!u) return res.status(404).json({ error: 'not found' });
+  const fields = {};
+  if (req.body.role) fields.role = req.body.role === 'admin' ? 'admin' : 'user';
+  if (req.body.password) { if (String(req.body.password).length < 6) return res.status(400).json({ error: 'password min 6' }); fields.password_hash = auth.hashPassword(req.body.password); }
+  // never demote/remove the last admin
+  if (fields.role === 'user' && u.role === 'admin' && db.listUsers().filter((x) => x.role === 'admin').length <= 1) return res.status(400).json({ error: 'cannot demote the last admin' });
+  res.json(db.userPublic(db.updateUser(req.params.id, fields)));
+}));
+app.delete('/api/users/:id', auth.requireAdmin, wrap((req, res) => {
+  const u = db.getUserById(req.params.id);
+  if (!u) return res.status(404).json({ error: 'not found' });
+  if (u.role === 'admin' && db.listUsers().filter((x) => x.role === 'admin').length <= 1) return res.status(400).json({ error: 'cannot delete the last admin' });
+  res.json({ deleted: db.deleteUser(req.params.id) });
+}));
+
+// ---- everything below requires authentication (session cookie or API token) ----
+['/api/assessments', '/api/report', '/api/backup', '/api/restore', '/api/ai', '/mcp', '/acp'].forEach((p) => app.use(p, auth.requireAuth));
 
 // ---- assessments CRUD ----
 app.get('/api/assessments', (req, res) => res.json(db.listAssessments()));

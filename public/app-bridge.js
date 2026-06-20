@@ -11,6 +11,7 @@
   var KEY = 'okami_maturity_state_v1';
   var IDKEY = 'okami_samm_server_id';
   var CONFIG = { aiEnabled: false };
+  var USER = null;
 
   // ---- AI shim (must exist before the user clicks "AI suggestions") ----
   window.claude = window.claude || {};
@@ -29,8 +30,8 @@
   function setState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
   function lang() { return (getState().lang === 'pt') ? 'pt' : 'en'; }
   var T = {
-    pt: { newA: '＋ Nova', newConfirm: 'Iniciar uma nova avaliação? Alterações não salvas no servidor serão perdidas.', save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restaurar', restored: function (n) { return n + ' avaliação(ões) restaurada(s)'; } },
-    en: { newA: '＋ New', newConfirm: 'Start a new assessment? Unsaved server changes will be lost.', save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restore', restored: function (n) { return n + ' assessment(s) restored'; } },
+    pt: { settings: 'Config', logout: 'Sair', newA: '＋ Nova', newConfirm: 'Iniciar uma nova avaliação? Alterações não salvas no servidor serão perdidas.', save: 'Salvar', load: 'Carregar', pdf: 'Relatório PDF', saved: 'Avaliação salva no servidor', updated: 'Avaliação atualizada', loaded: 'Avaliação carregada', err: 'Erro ao falar com o servidor', none: 'Nenhuma avaliação salva ainda.', pick: 'Carregar avaliação', close: 'Fechar', untitled: 'Sem nome', overall: 'Maturidade', gen: 'Gerando PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restaurar', restored: function (n) { return n + ' avaliação(ões) restaurada(s)'; } },
+    en: { settings: 'Settings', logout: 'Log out', newA: '＋ New', newConfirm: 'Start a new assessment? Unsaved server changes will be lost.', save: 'Save', load: 'Load', pdf: 'PDF report', saved: 'Assessment saved to server', updated: 'Assessment updated', loaded: 'Assessment loaded', err: 'Could not reach the server', none: 'No saved assessment yet.', pick: 'Load assessment', close: 'Close', untitled: 'Untitled', overall: 'Maturity', gen: 'Generating PDF…', exportAll: '⤓ Backup', importAll: '⤒ Restore', restored: function (n) { return n + ' assessment(s) restored'; } },
   };
   function t(k) { return (T[lang()] || T.pt)[k]; }
 
@@ -170,10 +171,17 @@
       b.addEventListener('click', fn);
       return b;
     }
+    if (USER) {
+      var who = document.createElement('span');
+      who.textContent = USER.username + (USER.role === 'admin' ? ' · admin' : '');
+      who.style.cssText = 'display:flex;align-items:center;padding:0 12px;color:#6c6d80;font-size:10px;letter-spacing:.06em;';
+      bar.appendChild(who);
+    }
     bar.appendChild(btn(t('newA'), '#cf3d8a', newAssessment));
     bar.appendChild(btn('☁ ' + t('save'), '#57C7D8', saveServer));
     bar.appendChild(btn('📂 ' + t('load'), '#2a2b3a', openLoad));
     bar.appendChild(btn('📄 ' + t('pdf'), '#e4782a', makePDF));
+    if (USER) bar.appendChild(btn('⎋ ' + t('logout'), '#2a2b3a', logout));
     document.body.appendChild(bar);
   }
 
@@ -233,9 +241,21 @@
     new MutationObserver(function () { applyConfigUI(); }).observe(document.body, { childList: true, subtree: true });
   }
 
-  fetch('/api/config').then(function (r) { return r.json(); }).then(function (c) { CONFIG = c || CONFIG; }).catch(function () {})
-    .finally(function () {
-      if (document.body) init();
-      else document.addEventListener('DOMContentLoaded', init);
-    });
+  // ---- auth gate: require login before showing the app ----
+  fetch('/api/auth/me').then(function (r) {
+    if (r.status === 401) { location.replace('/login.html'); throw 'noauth'; }
+    return r.json();
+  }).then(function (u) {
+    USER = u;
+    return fetch('/api/config').then(function (r) { return r.json(); });
+  }).then(function (c) {
+    CONFIG = c || CONFIG;
+    if (document.body) init();
+    else document.addEventListener('DOMContentLoaded', init);
+  }).catch(function (e) { if (e !== 'noauth') { /* network error — leave app as-is */ } });
+
+  async function logout() {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+    location.replace('/login.html');
+  }
 })();

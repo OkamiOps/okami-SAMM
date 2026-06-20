@@ -99,12 +99,34 @@ npm test    # tests/offline-render.js — o app deve renderizar com o CDN bloque
 
 ---
 
+## 🔐 Contas & acesso
+
+Usuários locais (sem nuvem). No primeiro run o app te leva para uma tela de
+**Criar admin**; depois, todos entram com usuário + senha. Dois papéis:
+
+- **admin** — tudo, mais gestão de usuários e (em breve) configurações.
+- **user** — fazer avaliações e relatórios.
+
+Os dados são um **workspace compartilhado** (todos veem todas as avaliações). Os
+agentes (MCP/ACP) autenticam com um **token de API por usuário** (visível em
+`/api/auth/me`, rotacione via `POST /api/auth/token`). Sem contas em nuvem
+pública — fica tudo no seu SQLite.
+
 ## 🔌 API
+
+Todas as rotas exceto `/healthz`, `/api/config` e `/api/auth/*` exigem
+autenticação — **cookie de sessão** (web) ou **token de API** por usuário (agentes):
+`Authorization: Bearer <token>` ou `X-API-Key: <token>`.
 
 | Método | Rota | Função |
 |---|---|---|
-| GET | `/healthz` | health check |
-| GET | `/api/config` | `{ aiEnabled, aiProvider, version }` |
+| GET | `/healthz` | health check (público) |
+| GET | `/api/config` | `{ authEnabled, needsSetup, aiEnabled, … }` (público) |
+| POST | `/api/auth/setup` | cria o primeiro admin (só no primeiro run) |
+| POST | `/api/auth/login` · `/api/auth/logout` | login / logout de sessão |
+| GET | `/api/auth/me` | usuário atual + token de API |
+| POST | `/api/auth/token` | rotaciona seu token de API |
+| GET/POST/PUT/DELETE | `/api/users` | gestão de usuários (**admin**) |
 | GET | `/api/assessments` | lista avaliações salvas |
 | POST | `/api/assessments` | cria (`{ state }`) → avaliação |
 | GET | `/api/assessments/:id` | estado completo |
@@ -187,8 +209,9 @@ claude mcp add okami-samm -- node /caminho/abs/okami-samm/server/mcp-stdio.js  #
 `get_roadmap`, `add_snapshot`, `generate_report`, `delete_assessment`,
 `export_backup`, `import_backup` (+ um resource `samm://model`).
 
-> O endpoint MCP tem acesso **total de leitura/escrita** (igual à API REST). Se
-> expuser `/mcp` na internet, coloque atrás de um proxy reverso com auth / VPN.
+> `/mcp` exige autenticação — envie seu **token de API** como
+> `Authorization: Bearer <token>` (pegue em `/api/auth/me`). A maioria dos clientes
+> MCP permite configurar um header custom no transporte HTTP.
 
 ## 🤝 ACP — interoperabilidade entre agentes
 

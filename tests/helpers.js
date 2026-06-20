@@ -31,4 +31,25 @@ function buildState(lang, everyNthAnswered, valueFn) {
   return { lang, screen: 'scorecard', started: true, meta: { org: 'Test Org', team: 'Test Team', date: '2026-06-20' }, answers, notes: {}, targets, snapshots: [] };
 }
 
-module.exports = { startServer, waitForServer, buildState };
+// Create the first admin (or log in if already set up) and return its session
+// cookie + API token, for authenticating test requests.
+async function createAdminSession(base, username = 'admin', password = 'admin123') {
+  const readCookie = (res) => {
+    const list = res.headers.getSetCookie ? res.headers.getSetCookie() : (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')] : []);
+    for (const c of list) { const m = /okami_session=([^;]+)/.exec(c); if (m) return m[1]; }
+    return '';
+  };
+  let res = await fetch(base + '/api/auth/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
+  let value = readCookie(res);
+  if (!value) {
+    res = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    value = readCookie(res);
+  }
+  const cookie = 'okami_session=' + value;
+  let token = null;
+  const me = await fetch(base + '/api/auth/me', { headers: { cookie } });
+  if (me.ok) token = (await me.json()).apiToken;
+  return { cookie, value, token };
+}
+
+module.exports = { startServer, waitForServer, buildState, createAdminSession };

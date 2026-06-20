@@ -26,6 +26,19 @@ CREATE TABLE IF NOT EXISTS assessments (
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  username      TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'user',
+  api_token     TEXT UNIQUE,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
 `);
 // Note: assessment "snapshots" live inside state_json (state.snapshots) — used by
 // the app's History/Evolution. There is intentionally no separate snapshots table.
@@ -116,7 +129,36 @@ const importAll = (data, mode = 'merge') => {
   return { imported: valid.length, skipped: list.length - valid.length, mode };
 };
 
+// ---- users ----
+const userPublic = (u) => u && { id: u.id, username: u.username, role: u.role, created_at: u.created_at };
+const countUsers = () => db.prepare('SELECT COUNT(*) n FROM users').get().n;
+const getUserById = (id) => db.prepare('SELECT * FROM users WHERE id=?').get(id);
+const getUserByUsername = (u) => db.prepare('SELECT * FROM users WHERE username=?').get(u);
+const getUserByToken = (tok) => (tok ? db.prepare('SELECT * FROM users WHERE api_token=?').get(tok) : null);
+const listUsers = () => db.prepare('SELECT id, username, role, created_at FROM users ORDER BY created_at ASC').all();
+const createUser = ({ username, password_hash, role, api_token }) => {
+  const id = uuid(); const ts = now();
+  db.prepare(`INSERT INTO users (id, username, password_hash, role, api_token, created_at, updated_at)
+              VALUES (?,?,?,?,?,?,?)`).run(id, username, password_hash, role || 'user', api_token || null, ts, ts);
+  return getUserById(id);
+};
+const updateUser = (id, fields) => {
+  const u = getUserById(id); if (!u) return null;
+  const next = { ...u, ...fields, updated_at: now() };
+  db.prepare('UPDATE users SET username=@username, password_hash=@password_hash, role=@role, api_token=@api_token, updated_at=@updated_at WHERE id=@id')
+    .run({ id, username: next.username, password_hash: next.password_hash, role: next.role, api_token: next.api_token, updated_at: next.updated_at });
+  return getUserById(id);
+};
+const deleteUser = (id) => db.prepare('DELETE FROM users WHERE id=?').run(id).changes > 0;
+
+// ---- settings (key/value) ----
+const getSetting = (key) => { const r = db.prepare('SELECT value FROM settings WHERE key=?').get(key); return r ? r.value : null; };
+const setSetting = (key, value) => db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, value == null ? null : String(value));
+const getAllSettings = () => Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map((r) => [r.key, r.value]));
+
 module.exports = {
-  db, createAssessment, updateAssessment, getAssessment, listAssessments,
+  db, uuid, createAssessment, updateAssessment, getAssessment, listAssessments,
   deleteAssessment, exportAll, importAll,
+  userPublic, countUsers, getUserById, getUserByUsername, getUserByToken, listUsers, createUser, updateUser, deleteUser,
+  getSetting, setSetting, getAllSettings,
 };

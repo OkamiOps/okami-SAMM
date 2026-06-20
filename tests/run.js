@@ -3,7 +3,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const TESTS = ['offline-render.js', 'scoring.test.js', 'api.test.js', 'mcp.test.js', 'acp-comm.test.js', 'acp-client.test.js'];
+const TESTS = ['auth.test.js', 'offline-render.js', 'scoring.test.js', 'api.test.js', 'mcp.test.js', 'acp-comm.test.js', 'acp-client.test.js'];
 let failed = 0;
 
 for (const t of TESTS) {

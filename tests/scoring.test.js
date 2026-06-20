@@ -3,7 +3,7 @@
 // SERVER computes for the same state. Scoring lives in two places
 // (public/index.html and server/score.js); this catches them drifting apart.
 const { chromium } = require('playwright');
-const { startServer, waitForServer, buildState } = require('./helpers');
+const { startServer, waitForServer, buildState, createAdminSession } = require('./helpers');
 const { summarize } = require('../server/score');
 
 const PORT = 3097;
@@ -28,8 +28,11 @@ async function readDisplayedOverall(page) {
   let failed = false;
   try {
     await waitForServer(`http://localhost:${PORT}/healthz`);
+    const sess = await createAdminSession(`http://localhost:${PORT}`);
     const browser = await chromium.launch();
-    const page = await browser.newPage();
+    const ctx = await browser.newContext();
+    await ctx.addCookies([{ name: 'okami_session', value: sess.value, url: `http://localhost:${PORT}` }]);
+    const page = await ctx.newPage();
     for (const c of CASES) {
       const expected = summarize(c.state).overall.toFixed(2);
       await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });

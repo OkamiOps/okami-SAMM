@@ -6,6 +6,7 @@
 // Usage: node tests/offline-render.js   (starts the server on a test port)
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
+const { createAdminSession } = require('./helpers');
 
 const PORT = 3099;
 
@@ -29,8 +30,10 @@ async function waitForServer(url, tries = 40) {
   let failed = false;
   try {
     await waitForServer(`http://localhost:${PORT}/healthz`);
+    const sess = await createAdminSession(`http://localhost:${PORT}`);
     const browser = await chromium.launch();
     const ctx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+    await ctx.addCookies([{ name: 'okami_session', value: sess.value, url: `http://localhost:${PORT}` }]);
     // Simulate the CDN being unreachable.
     await ctx.route('**unpkg.com**', (r) => r.abort());
     const page = await ctx.newPage();

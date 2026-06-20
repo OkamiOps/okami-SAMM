@@ -99,12 +99,34 @@ npm test    # tests/offline-render.js — the app must render with the CDN block
 
 ---
 
+## 🔐 Accounts & access
+
+Local users (no cloud). On first run the app sends you to a **Create admin**
+screen; after that, everyone signs in with username + password. Two roles:
+
+- **admin** — everything, plus manage users and (soon) settings.
+- **user** — run assessments and reports.
+
+Data is a **shared workspace** (all users see all assessments). Agents (MCP/ACP)
+authenticate with a **per-user API token** (shown in `/api/auth/me`, rotate via
+`POST /api/auth/token`). No accounts on a public cloud required — it's all in your
+SQLite DB.
+
 ## 🔌 API
+
+All routes except `/healthz`, `/api/config` and `/api/auth/*` require
+authentication — a **session cookie** (web) or a per-user **API token** (agents):
+`Authorization: Bearer <token>` or `X-API-Key: <token>`.
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/healthz` | health check |
-| GET | `/api/config` | `{ aiEnabled, aiProvider, version }` |
+| GET | `/healthz` | health check (public) |
+| GET | `/api/config` | `{ authEnabled, needsSetup, aiEnabled, … }` (public) |
+| POST | `/api/auth/setup` | create the first admin (first run only) |
+| POST | `/api/auth/login` · `/api/auth/logout` | session login / logout |
+| GET | `/api/auth/me` | current user + API token |
+| POST | `/api/auth/token` | rotate your API token |
+| GET/POST/PUT/DELETE | `/api/users` | user management (**admin**) |
 | GET | `/api/assessments` | list saved assessments |
 | POST | `/api/assessments` | create (`{ state }`) → assessment |
 | GET | `/api/assessments/:id` | full state |
@@ -187,8 +209,9 @@ claude mcp add okami-samm -- node /abs/path/okami-samm/server/mcp-stdio.js   # l
 `get_roadmap`, `add_snapshot`, `generate_report`, `delete_assessment`,
 `export_backup`, `import_backup` (+ a `samm://model` resource).
 
-> The MCP endpoint has **full read/write** access (same as the REST API). If you
-> expose `/mcp` to the internet, put it behind a reverse proxy with auth / a VPN.
+> `/mcp` requires authentication — send your **API token** as
+> `Authorization: Bearer <token>` (get it from `/api/auth/me`). Most MCP clients
+> let you set a custom header for the HTTP transport.
 
 ## 🤝 ACP — agent interoperability
 

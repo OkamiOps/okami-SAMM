@@ -83,6 +83,13 @@
           <div id="oauthCode" style="font-family:var(--ok-mono);font-weight:600;font-size:22px;letter-spacing:.18em;color:var(--ok-fg);"></div>
         </div>
         <div id="oauthStatus" class="ok-msg" style="margin-top:10px;color:var(--ok-cyan);">Waiting for authorization…</div>
+        <div id="oauthManual" style="display:none;margin-top:14px;border-top:1px solid var(--ok-line);padding-top:12px;">
+          <div style="font-family:var(--ok-mono);font-size:11px;color:var(--ok-fg-mute);margin-bottom:6px;">After authorizing, paste the URL/code OpenAI gave you:</div>
+          <div style="display:flex;gap:8px;">
+            <input class="ok-input" id="oauthManualUrl" placeholder="http://localhost:1455/auth/callback?code=…">
+            <button class="ok-btn cyan" id="oauthManualBtn" style="height:40px;white-space:nowrap;">Complete</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="actions">
@@ -199,11 +206,13 @@
     var d = r.body;
     var url = d.authorize_url || d.verification_uri_complete || d.verification_uri;
     $('oauthUrl').textContent = url; $('oauthUrl').href = url;
-    if (d.authorize_url) {  // loopback (Codex): no code, just authorize in the opened tab
+    if (d.authorize_url) {  // loopback (Codex): no code, authorize in the opened tab + paste-back fallback
       $('oauthOpenLabel').textContent = 'A sign-in tab opened — authorize there, then return here.';
       $('oauthCodeWrap').style.display = 'none';
+      $('oauthManual').style.display = 'block';
     } else {
       $('oauthOpenLabel').textContent = '1. Open'; $('oauthCodeWrap').style.display = 'block';
+      $('oauthManual').style.display = 'none';
       $('oauthCode').textContent = d.user_code || '';
     }
     $('oauthStatus').textContent = 'Waiting for authorization…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
@@ -220,6 +229,15 @@
       $('oauthStatus').textContent = '✗ ' + (r.body.error || 'failed'); $('oauthStatus').style.color = 'var(--ok-warning)';
     }, interval * 1000);
   }
+  $('oauthManualBtn').addEventListener('click', async function () {
+    var url = $('oauthManualUrl').value.trim();
+    if (!url) return;
+    stopPoll();
+    $('oauthStatus').textContent = 'Validating…'; $('oauthStatus').style.color = 'var(--ok-cyan)';
+    var r = await api('/api/settings/oauth/manual', { method: 'POST', body: JSON.stringify({ url: url }) });
+    if (r.status === 200 && r.body.status === 'done') { $('oauthBox').style.display = 'none'; $('oauthManualUrl').value = ''; await loadSettings(); show($('aiMsg'), 'Signed in.', true); }
+    else { $('oauthStatus').textContent = '✗ ' + (r.body.error || 'failed'); $('oauthStatus').style.color = 'var(--ok-warning)'; }
+  });
   $('oauthDisconnect').addEventListener('click', async function () {
     if (!confirm('Disconnect this OAuth login?')) return;
     await api('/api/settings', { method: 'PUT', body: JSON.stringify({ clear_api_key: true, ai_oauth_provider: '' }) });

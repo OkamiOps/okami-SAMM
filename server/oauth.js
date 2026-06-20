@@ -112,6 +112,33 @@ async function startLoopback(providerKey) {
   const authorize = p.authorizeUrl + '?' + new URLSearchParams({ response_type: 'code', client_id: p.clientId, redirect_uri: p.redirectUri, scope: p.scope, code_challenge: k.challenge, code_challenge_method: 'S256', state: k.state, id_token_add_organizations: 'true', codex_cli_simplified_flow: 'true', prompt: 'login' }).toString();
   return { display: { authorize_url: authorize, expires_in: 600 }, ctx: { provider: providerKey, mode: 'loopback' } };
 }
+// Manual completion: the user pastes the URL OpenAI redirected them to (the Codex
+// "simplified" flow shows it instead of hitting the loopback). Accepts a full URL
+// or just the code (optionally "code#state" / "code state").
+async function completeLoopbackManual(input) {
+  if (!loopback) { const e = new Error('no pending login — start the sign-in again'); throw e; }
+  const raw = String(input || '').trim();
+  if (!raw) throw new Error('paste the redirect URL (or code)');
+  let code = '', state = '';
+  if (/^https?:\/\//i.test(raw) || raw.indexOf('?') !== -1) {
+    let u; try { u = new URL(raw, 'http://localhost:1455'); } catch (_) { throw new Error('invalid URL'); }
+    code = u.searchParams.get('code') || ''; state = u.searchParams.get('state') || '';
+  } else {
+    const parts = raw.split(/[#\s]+/); code = parts[0] || ''; state = parts[1] || '';
+  }
+  if (!code) throw new Error('no authorization code found in what you pasted');
+  if (state && state !== loopback.state) throw new Error('state mismatch — start the sign-in again');
+  const p = PROVIDERS[loopback.provider];
+  const { data } = await formPost(p.tokenUrl, { grant_type: 'authorization_code', code, redirect_uri: p.redirectUri, client_id: p.clientId, code_verifier: loopback.verifier });
+  if (!data.access_token) {
+    const detail = typeof data.error_description === 'string' ? data.error_description : (typeof data.error === 'string' ? data.error : JSON.stringify(data).slice(0, 200));
+    throw new Error('token exchange failed: ' + detail);
+  }
+  saveTokens(loopback.provider, p, data);
+  closeLoopback();
+  return { ok: true };
+}
+
 function pollLoopback() {
   if (!loopback) return { error: 'no pending login' };
   if (loopback.status === 'done') { closeLoopback(); return { ok: true }; }
@@ -167,4 +194,4 @@ async function ensureFreshToken() {
 }
 
 const available = () => Object.keys(PROVIDERS).filter((k) => !PROVIDERS[k].disabled);
-module.exports = { PROVIDERS, startDevice, pollDevice, ensureFreshToken, available };
+module.exports = { PROVIDERS, startDevice, pollDevice, completeLoopbackManual, ensureFreshToken, available };

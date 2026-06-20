@@ -176,6 +176,13 @@ app.post('/api/settings/oauth/start', auth.requireAdmin, wrap(async (req, res) =
     res.json(display);
   } catch (e) { res.status(400).json({ error: e.message }); }
 }));
+app.post('/api/settings/oauth/manual', auth.requireAdmin, wrap(async (req, res) => {
+  try {
+    await oauth.completeLoopbackManual((req.body || {}).url);
+    oauthPending.delete(req.user.id);
+    res.json({ status: 'done' });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+}));
 app.post('/api/settings/oauth/poll', auth.requireAdmin, wrap(async (req, res) => {
   const ctx = oauthPending.get(req.user.id);
   if (!ctx) return res.status(400).json({ error: 'no pending login — start again' });

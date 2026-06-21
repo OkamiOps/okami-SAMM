@@ -378,6 +378,10 @@
     updatePNDock.prev = prev; updatePNDock.next = next; updatePNDock.dock = dock;
     updatePNDock();
     window.addEventListener('resize', updatePNDock);
+    // Drive the dock on a light timer — NOT from the MutationObserver. Updating the
+    // dock mutates the observed body, so observer-driven updates risk a feedback loop
+    // that froze the app. A 350ms poll is imperceptible and loop-proof.
+    setInterval(updatePNDock, 350);
   }
   // show the dock only on a phone AND while the assessment is visible (#okm-pn present);
   // mirror the real buttons' labels so PT/EN and "Próxima/Concluir" stay correct.
@@ -417,7 +421,7 @@
     mountDrawer();
     mountPNDock();
     applyConfigUI();
-    new MutationObserver(function () { applyConfigUI(); updatePNDock(); }).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(function () { applyConfigUI(); }).observe(document.body, { childList: true, subtree: true });
   }
 
   // ---- auth gate: require login before showing the app ----

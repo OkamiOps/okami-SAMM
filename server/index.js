@@ -350,7 +350,11 @@ app.delete('/mcp', (req, res) => res.status(405).json({ error: 'Method Not Allow
 app.use('/acp', require('./acp-comm').router);
 
 // ---- static frontend ----
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// HTML/JS/CSS use no-cache (must revalidate) so a deployed fix reaches users without a
+// hard refresh; other assets (fonts/images) keep the default caching.
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders: (res, p) => { if (/\.(html|js|css)$/.test(p)) res.setHeader('Cache-Control', 'no-cache'); },
+}));
 
 // ---- retention: purge assessments older than the configured window ----
 function runRetention() {

@@ -309,26 +309,29 @@ function actionMm(a) {
   if (meta) mm += 5.4; // Severity + Effort share one line
   return mm;
 }
-function actionHtml(a) {
+function actionHtml(a, s) {
+  const px = (b) => (b * s).toFixed(2);
   const meta = []; const main = [];
   for (const f of a.fields) (isMeta(f.label) ? meta : main).push(f);
-  const lbl = (s) => `<span style="font-family:var(--ok-mono);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-magenta);">${esc(s)}</span>`;
-  let h = `<div style="margin:7px 0 0;padding:6px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:7px;align-items:baseline;"><span style="flex:none;width:16px;height:16px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:8.5px;display:inline-flex;align-items:center;justify-content:center;">${a.__n}</span><strong style="font-family:var(--ok-display);font-size:13px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
-  if (a.lead) h += `<div style="font-size:11.5px;color:var(--doc-ink-soft);line-height:1.45;margin:2px 0 0 23px;">${inlDoc(a.lead)}</div>`;
-  for (const f of main) h += `<div style="margin:2px 0 0 23px;font-size:11.5px;line-height:1.45;">${f.label ? lbl(f.label) + ' ' : ''}<span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`;
-  if (meta.length) h += `<div style="margin:3px 0 0 23px;font-size:11px;line-height:1.45;">${meta.map((m) => lbl(m.label) + ' <span style="color:var(--doc-ink-soft);">' + inlDoc(m.body) + '</span>').join('<span style="color:var(--doc-line);margin:0 8px;">·</span>')}</div>`;
+  const lbl = (t) => `<span style="font-family:var(--ok-mono);font-size:${px(8.5)}px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-magenta);">${esc(t)}</span>`;
+  const ind = px(23);
+  let h = `<div style="margin:${px(7)}px 0 0;padding:${px(6)}px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:${px(7)}px;align-items:baseline;"><span style="flex:none;width:${px(16)}px;height:${px(16)}px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:${px(8.5)}px;display:inline-flex;align-items:center;justify-content:center;">${a.__n}</span><strong style="font-family:var(--ok-display);font-size:${px(13)}px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
+  if (a.lead) h += `<div style="font-size:${px(11.5)}px;color:var(--doc-ink-soft);line-height:1.45;margin:${px(2)}px 0 0 ${ind}px;">${inlDoc(a.lead)}</div>`;
+  for (const f of main) h += `<div style="margin:${px(2)}px 0 0 ${ind}px;font-size:${px(11.5)}px;line-height:1.45;">${f.label ? lbl(f.label) + ' ' : ''}<span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`;
+  if (meta.length) h += `<div style="margin:${px(3)}px 0 0 ${ind}px;font-size:${px(11)}px;line-height:1.45;">${meta.map((m) => lbl(m.label) + ' <span style="color:var(--doc-ink-soft);">' + inlDoc(m.body) + '</span>').join(`<span style="color:var(--doc-line);margin:0 ${px(8)}px;">·</span>`)}</div>`;
   return h + '</div>';
 }
-function aiBlockOpen(it, cont, L) {
-  const badge = it.target > 0 ? `<span style="font-family:var(--ok-mono);font-size:9px;color:${FN_COLOR[it.fnCode]};border:1px solid currentColor;padding:1px 6px;white-space:nowrap;">${esc(L.toReach)} ${it.target}</span>` : '';
-  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 15px;margin:11px 0;">
-    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:2px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:11.5px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
+function aiBlockOpen(it, L, s) {
+  const px = (b) => (b * s).toFixed(2);
+  const badge = it.target > 0 ? `<span style="font-family:var(--ok-mono);font-size:${px(9)}px;color:${FN_COLOR[it.fnCode]};border:1px solid currentColor;padding:1px 6px;white-space:nowrap;">${esc(L.toReach)} ${it.target}</span>` : '';
+  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:${px(12)}px ${px(15)}px;margin:${px(11)}px 0;break-inside:avoid;">
+    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:2px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:${px(15)}px;color:var(--doc-ink);">${esc(it.name)}</strong></div>${badge}</div>`;
 }
-function preambleHtml(lines) { return lines.map((l) => `<div style="font-size:11.5px;color:var(--doc-ink-soft);line-height:1.45;margin:2px 0 0;">${inlDoc(l)}</div>`).join(''); }
-function renderBlock(it, cont, actions, preamble, L) {
-  return aiBlockOpen(it, cont, L) + (preamble && preamble.length ? preambleHtml(preamble) : '') + actions.map(actionHtml).join('') + '</div>';
+function preambleHtml(lines, s) { const px = (b) => (b * s).toFixed(2); return lines.map((l) => `<div style="font-size:${px(11.5)}px;color:var(--doc-ink-soft);line-height:1.45;margin:${px(2)}px 0 0;">${inlDoc(l)}</div>`).join(''); }
+function renderBlock(it, L, s) {
+  return aiBlockOpen(it, L, s) + (it.parsed.preamble.length ? preambleHtml(it.parsed.preamble, s) : '') + it.parsed.actions.map((a) => actionHtml(a, s)).join('') + '</div>';
 }
-function blockMm(it, actions, preamble) {
+function blockMm(actions, preamble) {
   let mm = 15 + 2; // header + block padding/margin
   if (preamble && preamble.length) mm += preamble.reduce((s, l) => s + estMm(l), 0) + 2;
   for (const a of actions) mm += actionMm(a);
@@ -343,27 +346,19 @@ function aiSuggestionsPages(numS, state, L, isPT) {
     items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed });
   }
   if (!items.length) return null;
-  const FULL = 237, HEAD0 = 47, EY = 8; // page height, section-head cost (page 0), eyebrow cost (cont.)
+  // Each practice ALWAYS stays whole on one page. If a practice is too tall, shrink
+  // its font just enough to fit one page (auto-fit) — never split its actions.
+  const FULL = 237, HEAD0 = 47, EY = 8, TARGET = FULL - EY - 6; // 223mm a whole practice may use
   const pages = []; let cur = []; let used = 0;
-  const cap = () => FULL - (pages.length === 0 ? HEAD0 : EY); // capacity of the current page
+  const cap = () => FULL - (pages.length === 0 ? HEAD0 : EY);
   const flush = (force) => { if (cur.length || force) pages.push(cur.join('')); cur = []; used = 0; };
   for (const it of items) {
-    const whole = blockMm(it, it.parsed.actions, it.parsed.preamble);
-    if (whole <= FULL - EY) { // fits a normal page — keep it whole, never split 3+1
-      if (used > 0 && used + whole > cap()) flush();          // doesn't fit current page → next page
-      else if (used === 0 && whole > cap()) flush(true);       // page-0 head leaves too little → head-only page 0
-      cur.push(renderBlock(it, false, it.parsed.actions, it.parsed.preamble, L)); used += whole;
-    } else { // rare: a single practice is taller than a whole page — split balanced, own pages
-      if (used > 0) flush();
-      const acts = it.parsed.actions; const n = acts.length;
-      const need = Math.max(2, Math.ceil(whole / (FULL - HEAD0))); // chunks safe even on a head page
-      const per = Math.ceil(n / need);
-      for (let i = 0; i < n; i += per) {
-        if (used === 0 && whole > cap() && pages.length === 0) flush(true); // give page 0 to the head
-        cur.push(renderBlock(it, i > 0, acts.slice(i, i + per), i === 0 ? it.parsed.preamble : [], L));
-        flush();
-      }
-    }
+    const baseH = blockMm(it.parsed.actions, it.parsed.preamble);
+    const s = baseH > TARGET ? TARGET / baseH : 1; // shrink long practices to fit one page
+    const h = baseH * s;
+    if (used > 0 && used + h > cap()) flush();      // doesn't fit current page → next page (whole)
+    if (used === 0 && h > cap()) flush(true);        // page-0 head leaves too little → head-only page 0
+    cur.push(renderBlock(it, L, s)); used += h;
   }
   flush();
   return pages.map((body, gi) => {

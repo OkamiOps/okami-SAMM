@@ -286,7 +286,7 @@ function notesPages(numS, groups, L) {
 // A practice is only divided if it alone exceeds a page, and then balanced (e.g. 2+2).
 // Actions are compact (Severity + Effort on one line) so a full practice fits a page.
 const inlDoc = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
-const estMm = (text, cpl = 84, lh = 5.0) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
+const estMm = (text, cpl = 84, lh = 4.7) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
 const isMeta = (label) => /^(severity|severidade|effort|esfor[çc]o)$/i.test(label || '');
 function parseSuggestion(md) {
   const out = { preamble: [], actions: [] }; let cur = null;
@@ -346,21 +346,23 @@ function aiSuggestionsPages(numS, state, L, isPT) {
     items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed });
   }
   if (!items.length) return null;
-  // Each practice ALWAYS stays whole on one page. If a practice is too tall, shrink
-  // its font just enough to fit one page (auto-fit) — never split its actions.
-  const FULL = 237, HEAD0 = 47, EY = 8, TARGET = FULL - EY - 6; // 223mm a whole practice may use
-  const pages = []; let cur = []; let used = 0;
-  const cap = () => FULL - (pages.length === 0 ? HEAD0 : EY);
-  const flush = (force) => { if (cur.length || force) pages.push(cur.join('')); cur = []; used = 0; };
+  // A practice ALWAYS stays whole on one page (never split). Practices are packed
+  // into pages, then each page's font is scaled to fill it nicely: short practices
+  // scale UP (bigger font), long ones scale DOWN just enough to fit. The first page
+  // shares with the section head (no wasted blank page).
+  items.forEach((it) => { it.baseH = blockMm(it.parsed.actions, it.parsed.preamble); });
+  const FULL = 237, HEAD0 = 43, EY = 8, MIN = 0.80, MAX = 1.15; // scale clamps (~9px … ~13px)
+  const bins = []; let cur = [], curBase = 0, cap = FULL - HEAD0; // first page leaves room for the head
   for (const it of items) {
-    const baseH = blockMm(it.parsed.actions, it.parsed.preamble);
-    const s = baseH > TARGET ? TARGET / baseH : 1; // shrink long practices to fit one page
-    const h = baseH * s;
-    if (used > 0 && used + h > cap()) flush();      // doesn't fit current page → next page (whole)
-    if (used === 0 && h > cap()) flush(true);        // page-0 head leaves too little → head-only page 0
-    cur.push(renderBlock(it, L, s)); used += h;
+    if (cur.length && (curBase + it.baseH) * MIN > cap) { bins.push({ items: cur, base: curBase, cap }); cur = []; curBase = 0; cap = FULL - EY; }
+    cur.push(it); curBase += it.baseH;
   }
-  flush();
+  if (cur.length) bins.push({ items: cur, base: curBase, cap });
+  const pages = bins.map((bin) => {
+    let s = Math.min(MAX, bin.cap / bin.base);           // fill the page (cap the upscale)
+    if (bin.items.length > 1) s = Math.max(MIN, s);       // multi-practice page already fits at MIN
+    return bin.items.map((it) => renderBlock(it, L, s)).join('');
+  });
   return pages.map((body, gi) => {
     const head = gi === 0
       ? secHead(numS, L.sAI, L.sAILede) + `<div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--doc-ink-mute);margin:-6px 0 10px;">⚠ ${esc(L.aiNote)}</div>`

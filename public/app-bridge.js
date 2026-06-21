@@ -159,11 +159,10 @@
     if (document.getElementById('okm-bridge-style')) return;
     var st = document.createElement('style');
     st.id = 'okm-bridge-style';
+    // On mobile the dock is hidden (the hamburger drawer replaces it — see index.html
+    // head @media). Just keep the scroll-to-top button comfortably placed.
     st.textContent = '@media (max-width:640px){'
-      + '#okm-bridge-bar{left:0!important;right:0!important;bottom:0!important;gap:6px!important;flex-wrap:nowrap!important;overflow-x:auto!important;padding:8px 10px!important;justify-content:flex-start!important;background:rgba(6,6,9,.94);border-top:1px solid #1f1f2e;-webkit-overflow-scrolling:touch;}'
-      + '#okm-bridge-bar button{height:36px!important;padding:0 12px!important;font-size:10px!important;flex:0 0 auto;white-space:nowrap;box-shadow:none!important;}'
-      + '#okm-bridge-bar>span{flex:0 0 auto;white-space:nowrap;}'
-      + '#okm-scrolltop{left:auto!important;right:14px!important;bottom:64px!important;width:40px!important;height:40px!important;}'
+      + '#okm-scrolltop{left:14px!important;right:auto!important;bottom:18px!important;width:40px!important;height:40px!important;}'
       + '}';
     document.head.appendChild(st);
   }
@@ -235,6 +234,133 @@
     toggle();
   }
 
+  // ---- mobile hamburger drawer (consolidates nav + language + actions) ----
+  // Right-side slide-in sheet. Visibility is gated by static CSS (#okm-burger shown,
+  // #okm-stepper/#okm-topactions/#okm-bridge-bar hidden) in the index.html head
+  // @media block, so there is no desktop-chrome flash. The drawer drives the REAL
+  // dc-runtime controls (#okm-stepper / #okm-lang / #okm-topactions buttons) by
+  // re-querying and .click()-ing them at click time, so labels & state stay correct.
+  function mountDrawer() {
+    if (document.getElementById('okm-drawer')) return;
+    var STEPC = ['#e4782a', '#57C7D8', '#cf3d8a', '#e4782a', '#57C7D8', '#cf3d8a']; // orange/cyan/magenta cycle
+    var SCREENS = ['setup', 'assess', 'scorecard', 'roadmap', 'history', 'compare'];
+    var lastFocus = null, prevOverflow = '';
+
+    var burger = document.createElement('button');
+    burger.id = 'okm-burger';
+    burger.setAttribute('aria-label', 'Menu');
+    burger.setAttribute('aria-haspopup', 'dialog');
+    burger.setAttribute('aria-controls', 'okm-drawer');
+    burger.setAttribute('aria-expanded', 'false');
+    burger.style.cssText = 'display:none;position:fixed;top:10px;right:12px;z-index:99993;width:44px;height:44px;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:#0b0b12;border:1px solid #1f1f2e;color:#f4f4f8;cursor:pointer;';
+    for (var i = 0; i < 3; i++) { var s = document.createElement('span'); s.style.cssText = 'display:block;width:18px;height:2px;background:#f4f4f8;'; burger.appendChild(s); }
+    burger.addEventListener('click', openDrawer);
+    document.body.appendChild(burger);
+
+    var scrim = document.createElement('div');
+    scrim.id = 'okm-scrim';
+    scrim.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(4,4,8,.72);backdrop-filter:blur(4px);opacity:0;visibility:hidden;transition:opacity .28s,visibility .28s;';
+    scrim.addEventListener('click', closeDrawer);
+    document.body.appendChild(scrim);
+
+    var drawer = document.createElement('aside');
+    drawer.id = 'okm-drawer';
+    drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true'); drawer.setAttribute('aria-label', 'Menu');
+    drawer.style.cssText = 'position:fixed;top:0;right:0;width:min(86vw,360px);z-index:99996;background:#0b0b12;border-left:1px solid #1f1f2e;box-shadow:-24px 0 60px -20px rgba(0,0,0,.8);overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);font-family:ui-monospace,Menlo,monospace;padding-bottom:max(24px,env(safe-area-inset-bottom));';
+    drawer.style.height = '100vh'; drawer.style.height = '100dvh';
+    document.body.appendChild(drawer);
+
+    function kicker(txt) { var d = document.createElement('div'); d.textContent = txt; d.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#6c6d80;border-bottom:1px solid #15151f;padding:18px 18px 8px;'; return d; }
+    function row() { var b = document.createElement('button'); b.style.cssText = 'display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #15151f;border-left:3px solid transparent;padding:0 18px;min-height:54px;color:#b9bac8;cursor:pointer;font-family:inherit;font-size:14px;'; return b; }
+    function pt() { return lang() === 'pt'; }
+
+    function build() {
+      drawer.innerHTML = '';
+      var head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 12px 14px 18px;border-bottom:1px solid #1f1f2e;position:sticky;top:0;background:#0b0b12;z-index:1;';
+      var logo = document.createElement('img'); logo.src = 'assets/okami-maturity-on-dark.png'; logo.alt = 'OKAMI'; logo.style.cssText = 'height:22px;width:auto;max-width:200px;';
+      var x = document.createElement('button'); x.setAttribute('aria-label', 'Close'); x.innerHTML = '&#10005;'; x.style.cssText = 'width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid #1f1f2e;color:#6c6d80;font-size:15px;cursor:pointer;'; x.addEventListener('click', closeDrawer);
+      head.appendChild(logo); head.appendChild(x); drawer.appendChild(head);
+
+      var cur = (getState().screen) || 'setup';
+      // NAV
+      drawer.appendChild(kicker(pt() ? '// Navegar' : '// Navigate'));
+      var stepBtns = document.querySelectorAll('#okm-stepper button');
+      if (stepBtns.length === 6) {
+        for (var i = 0; i < 6; i++) (function (i, sb) {
+          var active = SCREENS[i] === cur, col = STEPC[i], r = row();
+          var num = document.createElement('span'); num.textContent = ('0' + (i + 1)).slice(-2); num.style.cssText = 'font-family:ui-monospace,Menlo,monospace;font-size:11px;color:' + col + ';opacity:' + (active ? '1' : '.78') + ';';
+          var lab = document.createElement('span'); lab.textContent = (sb.textContent || '').replace(/^\s*\d+\s*/, '').trim(); lab.style.fontFamily = "'Space Grotesk',system-ui,sans-serif";
+          r.appendChild(num); r.appendChild(lab);
+          if (active) { r.style.borderLeftColor = col; r.style.color = '#f4f4f8'; r.style.background = '#11111b'; r.setAttribute('aria-current', 'page'); }
+          r.addEventListener('click', function () { var b = document.querySelectorAll('#okm-stepper button'); if (b[i]) b[i].click(); closeDrawer(); });
+          drawer.appendChild(r);
+        })(i, stepBtns[i]);
+      } else { var st = document.getElementById('okm-stepper'); if (st) st.style.display = 'flex'; } // fallback: never strand nav
+
+      // LANGUAGE
+      drawer.appendChild(kicker(pt() ? '// Idioma' : '// Language'));
+      var lw = document.createElement('div'); lw.style.cssText = 'display:flex;margin:10px 18px 4px;border:1px solid #1f1f2e;';
+      var langBtns = document.querySelectorAll('#okm-lang button');
+      ['PT', 'EN'].forEach(function (code, i) {
+        var on = lang() === code.toLowerCase(), seg = document.createElement('button'); seg.textContent = code;
+        seg.style.cssText = 'flex:1;height:38px;border:0;cursor:pointer;font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.1em;' + (on ? 'background:#e4782a;color:#0a0a0f;' : 'background:transparent;color:#b9bac8;');
+        seg.addEventListener('click', function () { if (langBtns[i]) langBtns[i].click(); setTimeout(build, 70); });
+        lw.appendChild(seg);
+      });
+      drawer.appendChild(lw);
+
+      // ACTIONS
+      drawer.appendChild(kicker(pt() ? '// Ações' : '// Actions'));
+      function action(label, col, fn, danger) {
+        var r = row(); if (col) r.style.borderLeftColor = col; r.style.textTransform = 'uppercase'; r.style.letterSpacing = '.06em'; r.style.fontSize = '12px';
+        if (danger) { r.style.color = '#ff5b6e'; r.style.marginTop = '8px'; }
+        r.textContent = label;
+        r.addEventListener('click', function () { closeDrawer(); setTimeout(fn, 40); });
+        drawer.appendChild(r);
+      }
+      action(t('newA'), '#cf3d8a', newAssessment); // t('newA') already includes the ＋
+      action('☁ ' + t('save'), '#57C7D8', saveServer);
+      action('📂 ' + t('load'), '#2a2b3a', openLoad);
+      action('📄 ' + t('pdf'), '#e4782a', makePDF);
+      action('↓ ' + (pt() ? 'Exportar JSON' : 'Export JSON'), '#2a2b3a', function () { var ex = document.querySelector('#okm-topactions > button'); if (ex) ex.click(); });
+      action('↑ ' + (pt() ? 'Importar JSON' : 'Import JSON'), '#2a2b3a', function () { var lb = document.querySelector('#okm-topactions label'); if (lb) lb.click(); });
+      if (USER && USER.role === 'admin') action('⚙ ' + t('settings'), '#2a2b3a', function () { location.href = '/settings.html'; });
+      if (USER) {
+        action('⎋ ' + t('logout'), '', logout, true);
+        var who = document.createElement('div'); who.textContent = USER.username + (USER.role === 'admin' ? ' · admin' : ''); who.style.cssText = 'padding:16px 18px 4px;color:#6c6d80;font-size:10px;letter-spacing:.06em;'; drawer.appendChild(who);
+      }
+      var idx = SCREENS.indexOf(cur); if (burger.firstChild) burger.firstChild.style.background = idx >= 0 ? STEPC[idx] : '#f4f4f8';
+    }
+
+    function onKey(e) {
+      if (e.key === 'Escape') { closeDrawer(); return; }
+      if (e.key === 'Tab') { // focus trap
+        var f = drawer.querySelectorAll('button,a,input,[tabindex]'); if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    function openDrawer() {
+      lastFocus = document.activeElement; build();
+      scrim.style.visibility = 'visible'; scrim.style.opacity = '1';
+      drawer.style.transform = 'translateX(0)';
+      prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
+      burger.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onKey);
+      var f = drawer.querySelector('button'); if (f) f.focus();
+    }
+    function closeDrawer() {
+      scrim.style.opacity = '0'; scrim.style.visibility = 'hidden';
+      drawer.style.transform = 'translateX(100%)';
+      document.body.style.overflow = prevOverflow || '';
+      burger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('keydown', onKey);
+      if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+    }
+  }
+
   // ---- hide built-in AI + reroute built-in "↓ PDF" to the Okami report ----
   function applyConfigUI() {
     document.querySelectorAll('button').forEach(function (b) {
@@ -253,6 +379,7 @@
   function init() {
     mountToolbar();
     mountScrollTop();
+    mountDrawer();
     applyConfigUI();
     new MutationObserver(function () { applyConfigUI(); }).observe(document.body, { childList: true, subtree: true });
   }

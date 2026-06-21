@@ -35,10 +35,12 @@
   ::-webkit-scrollbar-thumb{background:#1f1f2e;border:2px solid #060609}
   input,select,textarea{max-width:100%;}
   @media (max-width:640px){
-    /* wordmark would be ~350px wide at height:38px — scale it to fit small screens */
-    img[src*="okami-maturity-on-dark"]{height:auto !important;max-width:min(76vw,300px) !important;}
-    /* clear the mobile bottom dock from app-bridge */
-    body{padding-bottom:env(safe-area-inset-bottom);}
+    /* slim the sticky top bar to logo + hamburger; everything else moves into the drawer */
+    #okm-topbar img{height:auto !important;max-width:min(72vw,260px) !important;}
+    #okm-topactions{display:none !important;}   /* PT/EN + Export/Import/PDF -> drawer */
+    #okm-stepper{display:none !important;}        /* section nav -> drawer NAV group */
+    #okm-bridge-bar{display:none !important;}     /* bottom dock -> replaced by drawer */
+    #okm-burger{display:flex !important;}         /* show the hamburger (injected by app-bridge) */
   }
   @media print{
     @page{ margin:12mm; }
@@ -54,11 +56,11 @@
   <!-- ============ STICKY HEADER (top bar + stepper, always visible) ============ -->
   <div style="position:sticky;top:0;z-index:30;background:color-mix(in oklch,var(--ok-bg-0) 90%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--ok-line);">
   <!-- ============ TOP BAR ============ -->
-  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px clamp(16px,4vw,40px);">
+  <div id="okm-topbar" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px clamp(16px,4vw,40px);">
     <img src="assets/okami-maturity-on-dark.png" alt="OKAMI Maturity — Evolve · Measure · Results" style="height:38px;width:auto;display:block;" />
     <div style="flex:1;"></div>
-    <div data-print="hide" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <div style="display:inline-flex;border:1px solid var(--ok-line);">
+    <div id="okm-topactions" data-print="hide" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div id="okm-lang" style="display:inline-flex;border:1px solid var(--ok-line);">
         <button onClick="{{ setPT }}" style="{{ langPtStyle }}">PT</button>
         <button onClick="{{ setEN }}" style="{{ langEnStyle }}">EN</button>
       </div>
@@ -69,7 +71,7 @@
   </div>
 
   <!-- ============ STEPPER NAV ============ -->
-  <div data-print="hide" style="display:flex;gap:0;flex-wrap:wrap;padding:0 clamp(16px,4vw,40px);border-top:1px solid var(--ok-line-soft);overflow-x:auto;">
+  <div id="okm-stepper" data-print="hide" style="display:flex;gap:0;flex-wrap:wrap;padding:0 clamp(16px,4vw,40px);border-top:1px solid var(--ok-line-soft);overflow-x:auto;">
     <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
       <button onClick="{{ st.onClick }}" style="{{ st.style }}">
         <span style="{{ st.numStyle }}">{{ st.num }}</span>

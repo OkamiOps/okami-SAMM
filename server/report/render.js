@@ -280,12 +280,14 @@ function notesPages(numS, groups, L) {
   });
 }
 
-// ---- AI suggestions appendix: action-level pagination -----------------------
-// Fixed-height sheets clip overflow, so we measure each unit (estimated mm) and
-// pack pages, splitting a practice's actions across pages (repeating its header
-// with "(cont.)") so nothing is ever cut off.
+// ---- AI suggestions appendix: whole-practice pagination ---------------------
+// Fixed-height sheets clip overflow, so we estimate each practice block's height
+// (mm) and pack WHOLE practices per page — a practice's 4 actions never split 3+1.
+// A practice is only divided if it alone exceeds a page, and then balanced (e.g. 2+2).
+// Actions are compact (Severity + Effort on one line) so a full practice fits a page.
 const inlDoc = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
-const estMm = (text, cpl = 82, lh = 4.4) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
+const estMm = (text, cpl = 88, lh = 4.0) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
+const isMeta = (label) => /^(severity|severidade|effort|esfor[çc]o)$/i.test(label || '');
 function parseSuggestion(md) {
   const out = { preamble: [], actions: [] }; let cur = null;
   for (const raw of String(md || '').split(/\n/)) {
@@ -299,43 +301,66 @@ function parseSuggestion(md) {
   }
   return out;
 }
-function actionMm(a) { let mm = 6 + 3; if (a.lead) mm += estMm(a.lead); for (const f of a.fields) mm += estMm((f.label ? f.label + ' ' : '') + f.body, 80) + 1; return mm; }
-function actionHtml(a, n) {
-  let h = `<div style="margin:9px 0 0;padding:9px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:8px;align-items:baseline;"><span style="flex:none;width:17px;height:17px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">${n}</span><strong style="font-family:var(--ok-display);font-size:12.5px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
-  if (a.lead) h += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inlDoc(a.lead)}</div>`;
-  for (const f of a.fields) h += f.label
-    ? `<div style="margin:2px 0 0 25px;font-size:11px;line-height:1.5;"><span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--doc-magenta);">${esc(f.label)}</span> <span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`
-    : `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0 25px;">${inlDoc(f.body)}</div>`;
+function actionMm(a) {
+  let mm = 5 + 1.5; // title + top border/spacing
+  if (a.lead) mm += estMm(a.lead);
+  let meta = 0;
+  for (const f of a.fields) { if (isMeta(f.label)) { meta++; continue; } mm += estMm((f.label ? f.label + ' ' : '') + f.body) + 0.4; }
+  if (meta) mm += 4.4; // Severity + Effort share one line
+  return mm;
+}
+function actionHtml(a) {
+  const meta = []; const main = [];
+  for (const f of a.fields) (isMeta(f.label) ? meta : main).push(f);
+  const lbl = (s) => `<span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-magenta);">${esc(s)}</span>`;
+  let h = `<div style="margin:6px 0 0;padding:6px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:7px;align-items:baseline;"><span style="flex:none;width:15px;height:15px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:8.5px;display:inline-flex;align-items:center;justify-content:center;">${a.__n}</span><strong style="font-family:var(--ok-display);font-size:12px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
+  if (a.lead) h += `<div style="font-size:10.5px;color:var(--doc-ink-soft);line-height:1.4;margin:2px 0 0 22px;">${inlDoc(a.lead)}</div>`;
+  for (const f of main) h += `<div style="margin:1.5px 0 0 22px;font-size:10.5px;line-height:1.4;">${f.label ? lbl(f.label) + ' ' : ''}<span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`;
+  if (meta.length) h += `<div style="margin:3px 0 0 22px;font-size:10px;line-height:1.4;">${meta.map((m) => lbl(m.label) + ' <span style="color:var(--doc-ink-soft);">' + inlDoc(m.body) + '</span>').join('<span style="color:var(--doc-line);margin:0 7px;">·</span>')}</div>`;
   return h + '</div>';
 }
 function aiBlockOpen(it, cont, L) {
   const badge = it.target > 0 ? `<span style="font-family:var(--ok-mono);font-size:9px;color:${FN_COLOR[it.fnCode]};border:1px solid currentColor;padding:1px 6px;white-space:nowrap;">${esc(L.toReach)} ${it.target}</span>` : '';
-  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 14px;margin:12px 0;">
-    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:2px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:12px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
+  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:11px 13px;margin:10px 0;">
+    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:1px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:14px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:11px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
+}
+function preambleHtml(lines) { return lines.map((l) => `<div style="font-size:10.5px;color:var(--doc-ink-soft);line-height:1.4;margin:2px 0 0;">${inlDoc(l)}</div>`).join(''); }
+function renderBlock(it, cont, actions, preamble, L) {
+  return aiBlockOpen(it, cont, L) + (preamble && preamble.length ? preambleHtml(preamble) : '') + actions.map(actionHtml).join('') + '</div>';
+}
+function blockMm(it, actions, preamble) {
+  let mm = 14 + 2; // header + block padding/margin
+  if (preamble && preamble.length) mm += preamble.reduce((s, l) => s + estMm(l), 0) + 1.5;
+  for (const a of actions) mm += actionMm(a);
+  return mm;
 }
 function aiSuggestionsPages(numS, state, L, isPT) {
   const ai = state.ai || {}; const targets = state.targets || {};
   const items = [];
   for (const f of SAMM.functions) for (const p of f.practices) {
     const e = ai[p.code]; if (!(e && e.text)) continue;
-    items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed: parseSuggestion(e.text) });
+    const parsed = parseSuggestion(e.text); parsed.actions.forEach((a, i) => { a.__n = i + 1; });
+    items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed });
   }
   if (!items.length) return null;
-  const FIRST = 194, CONT = 230, HEADERMM = 15; // usable mm (calibrated to ~237mm; small safety margin)
-  const pages = []; let cur = []; let used = 0; let budget = FIRST; let open = false;
-  const flush = () => { if (open) { cur.push('</div>'); open = false; } if (cur.length) pages.push(cur.join('')); cur = []; used = 0; budget = CONT; };
+  const FIRST = 196, CONT = 235; // usable mm per page (after the section head on page 0)
+  const pages = []; let cur = []; let used = 0; let budget = FIRST;
+  const flush = () => { if (cur.length) { pages.push(cur.join('')); cur = []; } used = 0; budget = CONT; };
   for (const it of items) {
-    const units = [];
-    if (it.parsed.preamble.length) { const html = it.parsed.preamble.map((l) => `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inlDoc(l)}</div>`).join(''); units.push({ mm: it.parsed.preamble.reduce((s, l) => s + estMm(l), 0) + 2, html }); }
-    it.parsed.actions.forEach((a, i) => units.push({ mm: actionMm(a), html: actionHtml(a, i + 1) }));
-    let firstFrag = true;
-    for (const u of units) {
-      const need = (open ? 0 : HEADERMM) + u.mm;
-      if (used + need > budget && used > 0) { if (open) { cur.push('</div>'); open = false; } flush(); }
-      if (!open) { cur.push(aiBlockOpen(it, !firstFrag, L)); used += HEADERMM; open = true; firstFrag = false; }
-      cur.push(u.html); used += u.mm;
+    const whole = blockMm(it, it.parsed.actions, it.parsed.preamble);
+    if (whole <= budget) { // keep the practice whole on one page
+      if (used > 0 && used + whole > budget) flush();
+      cur.push(renderBlock(it, false, it.parsed.actions, it.parsed.preamble, L)); used += whole;
+    } else { // rare: a single practice is taller than a page — split balanced, own page(s)
+      if (used > 0) flush();
+      const acts = it.parsed.actions; const n = acts.length;
+      const need = Math.max(2, Math.ceil(whole / FIRST)); // size chunks to fit even the first page
+      const per = Math.ceil(n / need);
+      for (let i = 0; i < n; i += per) {
+        cur.push(renderBlock(it, i > 0, acts.slice(i, i + per), i === 0 ? it.parsed.preamble : [], L));
+        flush();
+      }
     }
-    if (open) { cur.push('</div>'); open = false; }
   }
   flush();
   return pages.map((body, gi) => {

@@ -33,6 +33,13 @@
   textarea{resize:vertical;}
   ::-webkit-scrollbar{width:10px;height:10px}
   ::-webkit-scrollbar-thumb{background:#1f1f2e;border:2px solid #060609}
+  input,select,textarea{max-width:100%;}
+  @media (max-width:640px){
+    /* wordmark would be ~350px wide at height:38px — scale it to fit small screens */
+    img[src*="okami-maturity-on-dark"]{height:auto !important;max-width:min(76vw,300px) !important;}
+    /* clear the mobile bottom dock from app-bridge */
+    body{padding-bottom:env(safe-area-inset-bottom);}
+  }
   @media print{
     @page{ margin:12mm; }
     html,body{ background:#fff !important; }

@@ -154,9 +154,24 @@
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+  // ---- responsive styles for the floating controls (mobile dock) ----
+  function mountBridgeStyle() {
+    if (document.getElementById('okm-bridge-style')) return;
+    var st = document.createElement('style');
+    st.id = 'okm-bridge-style';
+    st.textContent = '@media (max-width:640px){'
+      + '#okm-bridge-bar{left:0!important;right:0!important;bottom:0!important;gap:6px!important;flex-wrap:nowrap!important;overflow-x:auto!important;padding:8px 10px!important;justify-content:flex-start!important;background:rgba(6,6,9,.94);border-top:1px solid #1f1f2e;-webkit-overflow-scrolling:touch;}'
+      + '#okm-bridge-bar button{height:36px!important;padding:0 12px!important;font-size:10px!important;flex:0 0 auto;white-space:nowrap;box-shadow:none!important;}'
+      + '#okm-bridge-bar>span{flex:0 0 auto;white-space:nowrap;}'
+      + '#okm-scrolltop{left:auto!important;right:14px!important;bottom:64px!important;width:40px!important;height:40px!important;}'
+      + '}';
+    document.head.appendChild(st);
+  }
+
   // ---- floating toolbar ----
   function mountToolbar() {
     if (document.getElementById('okm-bridge-bar')) return;
+    mountBridgeStyle();
     var bar = document.createElement('div');
     bar.id = 'okm-bridge-bar';
     bar.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99990;display:flex;gap:8px;'

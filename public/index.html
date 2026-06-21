@@ -44,6 +44,14 @@
     /* assessment screen: stack the (sticky) rail + questions, full width — the sticky
        sidebar was overlapping the questions when wrapped on mobile */
     #okm-assess > div{position:static !important;top:auto !important;min-width:0 !important;max-width:100% !important;flex-basis:100% !important;}
+    /* questions FIRST; the navigator drops below as a compact horizontal chip strip */
+    #okm-assess{flex-direction:column;}
+    #okm-qs{order:1;}
+    #okm-rail{order:2;gap:14px !important;}
+    #okm-kbhint{display:none !important;}        /* keyboard hint is desktop-only */
+    #okm-pn{display:none !important;}            /* inline prev/next -> fixed bottom dock */
+    #okm-fnnav,#okm-prnav{flex-direction:row !important;overflow-x:auto;gap:8px !important;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+    #okm-fnnav button,#okm-prnav button{flex:0 0 auto !important;width:auto !important;gap:10px;}
   }
   @media print{
     @page{ margin:12mm; }
@@ -153,7 +161,7 @@
   <sc-if value="{{ isAssess }}" hint-placeholder-val="{{ false }}">
     <div id="okm-assess" style="display:flex;gap:clamp(16px,2.4vw,30px);flex-wrap:wrap;align-items:flex-start;">
       <!-- rail -->
-      <div style="flex:1 1 240px;max-width:300px;min-width:230px;position:sticky;top:118px;display:flex;flex-direction:column;gap:18px;">
+      <div id="okm-rail" style="flex:1 1 240px;max-width:300px;min-width:230px;position:sticky;top:118px;display:flex;flex-direction:column;gap:18px;">
         <div>
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
             <span style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-mute);">// {{ overallAnswered }}/{{ overallTotal }} {{ L.answeredWord }}</span>
@@ -161,7 +169,7 @@
           </div>
           <div style="height:5px;background:var(--ok-bg-2);overflow:hidden;"><div style="height:100%;background:var(--ok-cyan);width:{{ overallPctW }};transition:width .3s var(--ok-ease,ease);"></div></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
+        <div id="okm-fnnav" style="display:flex;flex-direction:column;gap:4px;">
           <sc-for list="{{ fnNav }}" as="fn" hint-placeholder-count="5">
             <button onClick="{{ fn.onClick }}" style="{{ fn.style }}">
               <span style="display:flex;align-items:center;gap:9px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ fn.color }};flex:none;"></span><span style="font-family:var(--ok-display);font-weight:500;font-size:14px;">{{ fn.label }}</span></span>
@@ -171,17 +179,19 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;border-top:1px dashed var(--ok-line);padding-top:14px;">
           <div style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok-fg-dim);margin-bottom:4px;">{{ activeFnLabel }}</div>
+          <div id="okm-prnav" style="display:flex;flex-direction:column;gap:4px;">
           <sc-for list="{{ practiceNav }}" as="pr" hint-placeholder-count="3">
             <button onClick="{{ pr.onClick }}" style="{{ pr.style }}">
               <span style="font-family:var(--ok-display);font-size:13px;">{{ pr.label }}</span>
               <span style="font-family:var(--ok-mono);font-size:11px;color:{{ pr.color }};">{{ pr.score }}</span>
             </button>
           </sc-for>
+          </div>
         </div>
       </div>
 
       <!-- questions -->
-      <div style="flex:3 1 460px;min-width:300px;display:flex;flex-direction:column;gap:18px;">
+      <div id="okm-qs" style="flex:3 1 460px;min-width:300px;display:flex;flex-direction:column;gap:18px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--ok-line);padding-bottom:16px;">
           <div>
             <div style="font-family:var(--ok-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:{{ apColor }};margin-bottom:8px;">// {{ apCode }} · {{ activeFnLabel }}</div>
@@ -197,7 +207,7 @@
           </div>
         </div>
 
-        <div data-print="hide" style="display:flex;align-items:center;gap:8px;font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-mute);margin:-2px 0 4px;">
+        <div id="okm-kbhint" data-print="hide" style="display:flex;align-items:center;gap:8px;font-family:var(--ok-mono);font-size:10px;letter-spacing:.06em;color:var(--ok-fg-mute);margin:-2px 0 4px;">
           <span style="color:var(--ok-cyan);">⌨</span>{{ L.kbHint }}
         </div>
 
@@ -236,9 +246,9 @@
           </div>
         </sc-for>
 
-        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;">
-          <button onClick="{{ prevPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-display);font-weight:500;font-size:14px;cursor:pointer;">← {{ L.prevBtn }}</button>
-          <button onClick="{{ nextPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 22px;background:var(--ok-accent);border:1px solid var(--ok-accent);color:#0a0a0f;font-family:var(--ok-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 0 calc(20px*var(--ok-glow)) color-mix(in oklch,var(--ok-accent) 55%,transparent);">{{ nextLabel }} →</button>
+        <div id="okm-pn" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;">
+          <button data-pn="prev" onClick="{{ prevPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 20px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-soft);font-family:var(--ok-display);font-weight:500;font-size:14px;cursor:pointer;">← {{ L.prevBtn }}</button>
+          <button data-pn="next" onClick="{{ nextPractice }}" style="display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 22px;background:var(--ok-accent);border:1px solid var(--ok-accent);color:#0a0a0f;font-family:var(--ok-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 0 calc(20px*var(--ok-glow)) color-mix(in oklch,var(--ok-accent) 55%,transparent);">{{ nextLabel }} →</button>
         </div>
       </div>
     </div>

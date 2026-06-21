@@ -162,7 +162,7 @@
     // On mobile the dock is hidden (the hamburger drawer replaces it — see index.html
     // head @media). Just keep the scroll-to-top button comfortably placed.
     st.textContent = '@media (max-width:640px){'
-      + '#okm-scrolltop{left:14px!important;right:auto!important;bottom:18px!important;width:40px!important;height:40px!important;}'
+      + '#okm-scrolltop{left:14px!important;right:auto!important;bottom:78px!important;width:40px!important;height:40px!important;}' // above the prev/next dock
       + '}';
     document.head.appendChild(st);
   }
@@ -361,6 +361,38 @@
     }
   }
 
+  // ---- mobile: fixed Prev/Next dock for the assessment (drives the real buttons) ----
+  function mountPNDock() {
+    if (document.getElementById('okm-pndock')) return;
+    var dock = document.createElement('div');
+    dock.id = 'okm-pndock';
+    dock.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;z-index:99992;gap:10px;padding:10px 12px max(10px,env(safe-area-inset-bottom));background:rgba(6,6,9,.94);border-top:1px solid #1f1f2e;backdrop-filter:blur(10px);';
+    var prev = document.createElement('button');
+    prev.style.cssText = "flex:0 0 auto;min-width:104px;height:48px;padding:0 16px;background:transparent;border:1px solid #1f1f2e;color:#b9bac8;font-family:'Space Grotesk',system-ui,sans-serif;font-weight:500;font-size:14px;cursor:pointer;white-space:nowrap;";
+    prev.addEventListener('click', function () { var b = document.querySelector('[data-pn=prev]'); if (b) b.click(); });
+    var next = document.createElement('button');
+    next.style.cssText = "flex:1 1 auto;height:48px;padding:0 16px;background:#e4782a;border:1px solid #e4782a;color:#0a0a0f;font-family:'Space Grotesk',system-ui,sans-serif;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;";
+    next.addEventListener('click', function () { var b = document.querySelector('[data-pn=next]'); if (b) b.click(); });
+    dock.appendChild(prev); dock.appendChild(next);
+    document.body.appendChild(dock);
+    updatePNDock.prev = prev; updatePNDock.next = next; updatePNDock.dock = dock;
+    updatePNDock();
+    window.addEventListener('resize', updatePNDock);
+  }
+  // show the dock only on a phone AND while the assessment is visible (#okm-pn present);
+  // mirror the real buttons' labels so PT/EN and "Próxima/Concluir" stay correct.
+  function updatePNDock() {
+    var dock = updatePNDock.dock; if (!dock) return;
+    var pn = document.getElementById('okm-pn');
+    var mobile = window.matchMedia('(max-width:640px)').matches;
+    if (pn && mobile) {
+      dock.style.display = 'flex';
+      var rp = document.querySelector('[data-pn=prev]'), rn = document.querySelector('[data-pn=next]');
+      if (rp) updatePNDock.prev.textContent = (rp.textContent || '').trim();
+      if (rn) updatePNDock.next.textContent = (rn.textContent || '').trim();
+    } else { dock.style.display = 'none'; }
+  }
+
   // ---- hide built-in AI + reroute built-in "↓ PDF" to the Okami report ----
   function applyConfigUI() {
     document.querySelectorAll('button').forEach(function (b) {
@@ -380,8 +412,9 @@
     mountToolbar();
     mountScrollTop();
     mountDrawer();
+    mountPNDock();
     applyConfigUI();
-    new MutationObserver(function () { applyConfigUI(); }).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(function () { applyConfigUI(); updatePNDock(); }).observe(document.body, { childList: true, subtree: true });
   }
 
   // ---- auth gate: require login before showing the app ----

@@ -280,47 +280,69 @@ function notesPages(numS, groups, L) {
   });
 }
 
-// Render a stored AI suggestion (markdown action plan) to report HTML, reusing the
-// same "N. **Title**" + "**Label:** body" format the app produces.
-function renderSuggestion(md) {
-  if (!md) return '';
-  const inl = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
-  let out = ''; let n = 0;
-  for (const raw of String(md).split(/\n/)) {
-    const t = raw.trim(); if (!t) continue;
+// ---- AI suggestions appendix: action-level pagination -----------------------
+// Fixed-height sheets clip overflow, so we measure each unit (estimated mm) and
+// pack pages, splitting a practice's actions across pages (repeating its header
+// with "(cont.)") so nothing is ever cut off.
+const inlDoc = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+const estMm = (text, cpl = 82, lh = 4.4) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
+function parseSuggestion(md) {
+  const out = { preamble: [], actions: [] }; let cur = null;
+  for (const raw of String(md || '').split(/\n/)) {
+    const t = raw.trim(); if (!t || /^[-*_]{3,}$/.test(t)) continue;
     const mAct = t.match(/^(\d+)[.)]\s*\*\*(.+?)\*\*:?\s*(.*)$/);
     const mLbl = t.match(/^\*\*(.+?):\*\*\s*(.*)$/);
-    if (mAct) {
-      n++; const title = mAct[2].replace(/\*\*/g, '').replace(/:$/, '');
-      out += `<div style="margin:9px 0 0;padding:9px 0 0;border-top:1px solid var(--doc-line-soft);break-inside:avoid;"><div style="display:flex;gap:8px;align-items:baseline;"><span style="flex:none;width:17px;height:17px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">${n}</span><strong style="font-family:var(--ok-display);font-size:12.5px;color:var(--doc-ink);">${inl(title)}</strong></div>`;
-      if (mAct[3]) out += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inl(mAct[3])}</div>`;
-      out += '</div>';
-    } else if (mLbl) {
-      out += `<div style="margin:2px 0 0 25px;font-size:11px;line-height:1.5;"><span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--doc-magenta);">${esc(mLbl[1])}</span> <span style="color:var(--doc-ink-soft);">${inl(mLbl[2])}</span></div>`;
-    } else if (!/^[-*_]{3,}$/.test(t)) {
-      out += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inl(t)}</div>`;
-    }
+    if (mAct) { cur = { title: mAct[2].replace(/\*\*/g, '').replace(/:$/, ''), lead: mAct[3] || '', fields: [] }; out.actions.push(cur); }
+    else if (mLbl && cur) cur.fields.push({ label: mLbl[1], body: mLbl[2] });
+    else if (cur) cur.fields.push({ label: '', body: t });
+    else out.preamble.push(t);
   }
   return out;
 }
+function actionMm(a) { let mm = 6 + 3; if (a.lead) mm += estMm(a.lead); for (const f of a.fields) mm += estMm((f.label ? f.label + ' ' : '') + f.body, 80) + 1; return mm; }
+function actionHtml(a, n) {
+  let h = `<div style="margin:9px 0 0;padding:9px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:8px;align-items:baseline;"><span style="flex:none;width:17px;height:17px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">${n}</span><strong style="font-family:var(--ok-display);font-size:12.5px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
+  if (a.lead) h += `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inlDoc(a.lead)}</div>`;
+  for (const f of a.fields) h += f.label
+    ? `<div style="margin:2px 0 0 25px;font-size:11px;line-height:1.5;"><span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--doc-magenta);">${esc(f.label)}</span> <span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`
+    : `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0 25px;">${inlDoc(f.body)}</div>`;
+  return h + '</div>';
+}
+function aiBlockOpen(it, cont, L) {
+  const badge = it.target > 0 ? `<span style="font-family:var(--ok-mono);font-size:9px;color:${FN_COLOR[it.fnCode]};border:1px solid currentColor;padding:1px 6px;white-space:nowrap;">${esc(L.toReach)} ${it.target}</span>` : '';
+  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 14px;margin:12px 0;">
+    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:2px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:12px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
+}
 function aiSuggestionsPages(numS, state, L, isPT) {
-  const ai = state.ai || {};
+  const ai = state.ai || {}; const targets = state.targets || {};
   const items = [];
   for (const f of SAMM.functions) for (const p of f.practices) {
-    const e = ai[p.code];
-    if (e && e.text) items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, html: renderSuggestion(e.text) });
+    const e = ai[p.code]; if (!(e && e.text)) continue;
+    items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed: parseSuggestion(e.text) });
   }
   if (!items.length) return null;
-  const blocks = items.map((it) => `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 14px;margin:12px 0;break-inside:avoid;">
-    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}</strong></div>
-    ${it.html}</div>`);
-  const pages = [];
-  for (let i = 0; i < blocks.length; i += 2) pages.push(blocks.slice(i, i + 2));
-  return pages.map((grp, gi) => {
+  const FIRST = 194, CONT = 230, HEADERMM = 15; // usable mm (calibrated to ~237mm; small safety margin)
+  const pages = []; let cur = []; let used = 0; let budget = FIRST; let open = false;
+  const flush = () => { if (open) { cur.push('</div>'); open = false; } if (cur.length) pages.push(cur.join('')); cur = []; used = 0; budget = CONT; };
+  for (const it of items) {
+    const units = [];
+    if (it.parsed.preamble.length) { const html = it.parsed.preamble.map((l) => `<div style="font-size:11px;color:var(--doc-ink-soft);line-height:1.5;margin:3px 0 0;">${inlDoc(l)}</div>`).join(''); units.push({ mm: it.parsed.preamble.reduce((s, l) => s + estMm(l), 0) + 2, html }); }
+    it.parsed.actions.forEach((a, i) => units.push({ mm: actionMm(a), html: actionHtml(a, i + 1) }));
+    let firstFrag = true;
+    for (const u of units) {
+      const need = (open ? 0 : HEADERMM) + u.mm;
+      if (used + need > budget && used > 0) { if (open) { cur.push('</div>'); open = false; } flush(); }
+      if (!open) { cur.push(aiBlockOpen(it, !firstFrag, L)); used += HEADERMM; open = true; firstFrag = false; }
+      cur.push(u.html); used += u.mm;
+    }
+    if (open) { cur.push('</div>'); open = false; }
+  }
+  flush();
+  return pages.map((body, gi) => {
     const head = gi === 0
       ? secHead(numS, L.sAI, L.sAILede) + `<div style="font-family:var(--ok-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--doc-ink-mute);margin:-6px 0 10px;">⚠ ${esc(L.aiNote)}</div>`
       : `<div class="doc-eyebrow">// ${numS} · ${esc(L.sAI)} (cont.)</div>`;
-    return sheet(L, head, grp.join(''));
+    return sheet(L, head, body);
   });
 }
 

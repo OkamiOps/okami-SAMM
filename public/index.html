@@ -41,6 +41,9 @@
     #okm-stepper{display:none !important;}        /* section nav -> drawer NAV group */
     #okm-bridge-bar{display:none !important;}     /* bottom dock -> replaced by drawer */
     #okm-burger{display:flex !important;}         /* show the hamburger (injected by app-bridge) */
+    /* assessment screen: stack the (sticky) rail + questions, full width — the sticky
+       sidebar was overlapping the questions when wrapped on mobile */
+    #okm-assess > div{position:static !important;top:auto !important;min-width:0 !important;max-width:100% !important;flex-basis:100% !important;}
   }
   @media print{
     @page{ margin:12mm; }
@@ -148,7 +151,7 @@
 
   <!-- ========== ASSESSMENT ========== -->
   <sc-if value="{{ isAssess }}" hint-placeholder-val="{{ false }}">
-    <div style="display:flex;gap:clamp(16px,2.4vw,30px);flex-wrap:wrap;align-items:flex-start;">
+    <div id="okm-assess" style="display:flex;gap:clamp(16px,2.4vw,30px);flex-wrap:wrap;align-items:flex-start;">
       <!-- rail -->
       <div style="flex:1 1 240px;max-width:300px;min-width:230px;position:sticky;top:118px;display:flex;flex-direction:column;gap:18px;">
         <div>

@@ -385,12 +385,15 @@
     var dock = updatePNDock.dock; if (!dock) return;
     var pn = document.getElementById('okm-pn');
     var mobile = window.matchMedia('(max-width:640px)').matches;
-    if (pn && mobile) {
-      dock.style.display = 'flex';
-      var rp = document.querySelector('[data-pn=prev]'), rn = document.querySelector('[data-pn=next]');
-      if (rp) updatePNDock.prev.textContent = (rp.textContent || '').trim();
-      if (rn) updatePNDock.next.textContent = (rn.textContent || '').trim();
-    } else { dock.style.display = 'none'; }
+    var disp = (pn && mobile) ? 'flex' : 'none';
+    if (dock.style.display !== disp) dock.style.display = disp;
+    if (disp === 'none') return;
+    // IMPORTANT: only write textContent when it actually changed. The dock lives in the
+    // body that the MutationObserver watches, so an unconditional write would re-trigger
+    // the observer -> updatePNDock -> write -> ... an infinite loop that froze the app.
+    var rp = document.querySelector('[data-pn=prev]'), rn = document.querySelector('[data-pn=next]');
+    if (rp) { var tp = (rp.textContent || '').trim(); if (updatePNDock.prev.textContent !== tp) updatePNDock.prev.textContent = tp; }
+    if (rn) { var tn = (rn.textContent || '').trim(); if (updatePNDock.next.textContent !== tn) updatePNDock.next.textContent = tn; }
   }
 
   // ---- hide built-in AI + reroute built-in "↓ PDF" to the Okami report ----

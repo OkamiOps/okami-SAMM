@@ -286,7 +286,7 @@ function notesPages(numS, groups, L) {
 // A practice is only divided if it alone exceeds a page, and then balanced (e.g. 2+2).
 // Actions are compact (Severity + Effort on one line) so a full practice fits a page.
 const inlDoc = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--doc-ink);font-weight:600;">$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
-const estMm = (text, cpl = 88, lh = 4.0) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
+const estMm = (text, cpl = 84, lh = 5.0) => Math.max(1, Math.ceil((String(text || '').length || 1) / cpl)) * lh;
 const isMeta = (label) => /^(severity|severidade|effort|esfor[çc]o)$/i.test(label || '');
 function parseSuggestion(md) {
   const out = { preamble: [], actions: [] }; let cur = null;
@@ -302,35 +302,35 @@ function parseSuggestion(md) {
   return out;
 }
 function actionMm(a) {
-  let mm = 5 + 1.5; // title + top border/spacing
+  let mm = 6 + 2; // title + top border/spacing
   if (a.lead) mm += estMm(a.lead);
   let meta = 0;
-  for (const f of a.fields) { if (isMeta(f.label)) { meta++; continue; } mm += estMm((f.label ? f.label + ' ' : '') + f.body) + 0.4; }
-  if (meta) mm += 4.4; // Severity + Effort share one line
+  for (const f of a.fields) { if (isMeta(f.label)) { meta++; continue; } mm += estMm((f.label ? f.label + ' ' : '') + f.body) + 0.6; }
+  if (meta) mm += 5.4; // Severity + Effort share one line
   return mm;
 }
 function actionHtml(a) {
   const meta = []; const main = [];
   for (const f of a.fields) (isMeta(f.label) ? meta : main).push(f);
-  const lbl = (s) => `<span style="font-family:var(--ok-mono);font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-magenta);">${esc(s)}</span>`;
-  let h = `<div style="margin:6px 0 0;padding:6px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:7px;align-items:baseline;"><span style="flex:none;width:15px;height:15px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:8.5px;display:inline-flex;align-items:center;justify-content:center;">${a.__n}</span><strong style="font-family:var(--ok-display);font-size:12px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
-  if (a.lead) h += `<div style="font-size:10.5px;color:var(--doc-ink-soft);line-height:1.4;margin:2px 0 0 22px;">${inlDoc(a.lead)}</div>`;
-  for (const f of main) h += `<div style="margin:1.5px 0 0 22px;font-size:10.5px;line-height:1.4;">${f.label ? lbl(f.label) + ' ' : ''}<span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`;
-  if (meta.length) h += `<div style="margin:3px 0 0 22px;font-size:10px;line-height:1.4;">${meta.map((m) => lbl(m.label) + ' <span style="color:var(--doc-ink-soft);">' + inlDoc(m.body) + '</span>').join('<span style="color:var(--doc-line);margin:0 7px;">·</span>')}</div>`;
+  const lbl = (s) => `<span style="font-family:var(--ok-mono);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-magenta);">${esc(s)}</span>`;
+  let h = `<div style="margin:7px 0 0;padding:6px 0 0;border-top:1px solid var(--doc-line-soft);"><div style="display:flex;gap:7px;align-items:baseline;"><span style="flex:none;width:16px;height:16px;border-radius:50%;background:var(--doc-magenta);color:#fff;font-family:var(--ok-mono);font-weight:700;font-size:8.5px;display:inline-flex;align-items:center;justify-content:center;">${a.__n}</span><strong style="font-family:var(--ok-display);font-size:13px;color:var(--doc-ink);">${inlDoc(a.title)}</strong></div>`;
+  if (a.lead) h += `<div style="font-size:11.5px;color:var(--doc-ink-soft);line-height:1.45;margin:2px 0 0 23px;">${inlDoc(a.lead)}</div>`;
+  for (const f of main) h += `<div style="margin:2px 0 0 23px;font-size:11.5px;line-height:1.45;">${f.label ? lbl(f.label) + ' ' : ''}<span style="color:var(--doc-ink-soft);">${inlDoc(f.body)}</span></div>`;
+  if (meta.length) h += `<div style="margin:3px 0 0 23px;font-size:11px;line-height:1.45;">${meta.map((m) => lbl(m.label) + ' <span style="color:var(--doc-ink-soft);">' + inlDoc(m.body) + '</span>').join('<span style="color:var(--doc-line);margin:0 8px;">·</span>')}</div>`;
   return h + '</div>';
 }
 function aiBlockOpen(it, cont, L) {
   const badge = it.target > 0 ? `<span style="font-family:var(--ok-mono);font-size:9px;color:${FN_COLOR[it.fnCode]};border:1px solid currentColor;padding:1px 6px;white-space:nowrap;">${esc(L.toReach)} ${it.target}</span>` : '';
-  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:11px 13px;margin:10px 0;">
-    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:1px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:14px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:11px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
+  return `<div style="border:1px solid var(--doc-line);border-left:3px solid ${FN_COLOR[it.fnCode]};padding:12px 15px;margin:11px 0;">
+    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:2px;"><div style="display:flex;align-items:baseline;gap:8px;"><span class="tag ${FN_TAG[it.fnCode]}">${esc(it.fnName)}</span><strong style="font-family:var(--ok-display);font-size:15px;color:var(--doc-ink);">${esc(it.name)}${cont ? ' <span style="font-weight:400;color:var(--doc-ink-mute);font-size:11.5px;">(cont.)</span>' : ''}</strong></div>${badge}</div>`;
 }
-function preambleHtml(lines) { return lines.map((l) => `<div style="font-size:10.5px;color:var(--doc-ink-soft);line-height:1.4;margin:2px 0 0;">${inlDoc(l)}</div>`).join(''); }
+function preambleHtml(lines) { return lines.map((l) => `<div style="font-size:11.5px;color:var(--doc-ink-soft);line-height:1.45;margin:2px 0 0;">${inlDoc(l)}</div>`).join(''); }
 function renderBlock(it, cont, actions, preamble, L) {
   return aiBlockOpen(it, cont, L) + (preamble && preamble.length ? preambleHtml(preamble) : '') + actions.map(actionHtml).join('') + '</div>';
 }
 function blockMm(it, actions, preamble) {
-  let mm = 14 + 2; // header + block padding/margin
-  if (preamble && preamble.length) mm += preamble.reduce((s, l) => s + estMm(l), 0) + 1.5;
+  let mm = 15 + 2; // header + block padding/margin
+  if (preamble && preamble.length) mm += preamble.reduce((s, l) => s + estMm(l), 0) + 2;
   for (const a of actions) mm += actionMm(a);
   return mm;
 }
@@ -343,20 +343,23 @@ function aiSuggestionsPages(numS, state, L, isPT) {
     items.push({ name: isPT ? (p.pt || p.name) : p.name, fnName: isPT ? (f.pt || f.name) : f.name, fnCode: f.code, target: Number(targets[p.code]) || 0, parsed });
   }
   if (!items.length) return null;
-  const FIRST = 196, CONT = 235; // usable mm per page (after the section head on page 0)
-  const pages = []; let cur = []; let used = 0; let budget = FIRST;
-  const flush = () => { if (cur.length) { pages.push(cur.join('')); cur = []; } used = 0; budget = CONT; };
+  const FULL = 237, HEAD0 = 47, EY = 8; // page height, section-head cost (page 0), eyebrow cost (cont.)
+  const pages = []; let cur = []; let used = 0;
+  const cap = () => FULL - (pages.length === 0 ? HEAD0 : EY); // capacity of the current page
+  const flush = (force) => { if (cur.length || force) pages.push(cur.join('')); cur = []; used = 0; };
   for (const it of items) {
     const whole = blockMm(it, it.parsed.actions, it.parsed.preamble);
-    if (whole <= budget) { // keep the practice whole on one page
-      if (used > 0 && used + whole > budget) flush();
+    if (whole <= FULL - EY) { // fits a normal page — keep it whole, never split 3+1
+      if (used > 0 && used + whole > cap()) flush();          // doesn't fit current page → next page
+      else if (used === 0 && whole > cap()) flush(true);       // page-0 head leaves too little → head-only page 0
       cur.push(renderBlock(it, false, it.parsed.actions, it.parsed.preamble, L)); used += whole;
-    } else { // rare: a single practice is taller than a page — split balanced, own page(s)
+    } else { // rare: a single practice is taller than a whole page — split balanced, own pages
       if (used > 0) flush();
       const acts = it.parsed.actions; const n = acts.length;
-      const need = Math.max(2, Math.ceil(whole / FIRST)); // size chunks to fit even the first page
+      const need = Math.max(2, Math.ceil(whole / (FULL - HEAD0))); // chunks safe even on a head page
       const per = Math.ceil(n / need);
       for (let i = 0; i < n; i += per) {
+        if (used === 0 && whole > cap() && pages.length === 0) flush(true); // give page 0 to the head
         cur.push(renderBlock(it, i > 0, acts.slice(i, i + per), i === 0 ? it.parsed.preamble : [], L));
         flush();
       }

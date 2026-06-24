@@ -482,11 +482,21 @@
             </sc-if>
             <sc-if value="{{ r.aiHasText }}" hint-placeholder-val="{{ false }}">
               <div style="margin-top:12px;border:1px solid var(--ok-line);border-left:3px solid var(--ok-magenta);background:color-mix(in oklch,var(--ok-magenta) 5%,var(--ok-bg-0));padding:14px 16px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-                  <span style="font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-magenta);">✦ {{ L.aiTitle }}</span>
-                  <button onClick="{{ r.onAI }}" style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-mute);font-family:var(--ok-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">↻ {{ L.aiRegen }}</button>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;{{ r.aiHeaderMb }}">
+                  <button onClick="{{ r.onToggleAi }}" title="{{ r.aiToggleLabel }}" style="display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;padding:0;cursor:pointer;font-family:var(--ok-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ok-magenta);">
+                    <span style="display:inline-block;font-size:8px;line-height:1;transform:rotate({{ r.aiChevDeg }});transition:transform .15s ease;">▶</span>
+                    <span>✦ {{ L.aiTitle }}</span>
+                  </button>
+                  <div style="display:flex;align-items:center;gap:8px;flex:none;">
+                    <button onClick="{{ r.onToggleAi }}" style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-mute);font-family:var(--ok-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">{{ r.aiToggleLabel }}</button>
+                    <sc-if value="{{ r.aiExpanded }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ r.onAI }}" style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--ok-line);color:var(--ok-fg-mute);font-family:var(--ok-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">↻ {{ L.aiRegen }}</button>
+                    </sc-if>
+                  </div>
                 </div>
-                <div dangerouslySetInnerHTML="{{ r.aiHtmlObj }}"></div>
+                <sc-if value="{{ r.aiExpanded }}" hint-placeholder-val="{{ true }}">
+                  <div dangerouslySetInnerHTML="{{ r.aiHtmlObj }}"></div>
+                </sc-if>
               </div>
             </sc-if>
             <sc-if value="{{ r.aiError }}" hint-placeholder-val="{{ false }}">
@@ -686,7 +696,7 @@ class Component extends DCLogic {
         stDone:'Concluído', stPartial:'Parcial', stNone:'Não iniciado', focusNow:'Foco agora', achievedWord:'atingido',
         targetReachedMsg:'Meta atingida — mantenha a melhoria contínua.', noTargetMsg:'Defina uma meta acima para priorizar as ações.', focusBannerMsg:'Foco para a meta', aboveTarget:'Acima da meta',
         currentLevelLabel:'Nível atual', nextStepMsg:'Próximo nível a conquistar:', maxMsg:'Nível máximo atingido — mantenha a melhoria contínua.', quickWin:'Maior impacto', completedLabel:'Já conquistado', initialWord:'Inicial', nextWord:'Próximo', clickHint:'Clique nos níveis acima para ver os detalhes de cada um.', viewingDone:'Concluído', viewingPartial:'Parcial', viewingNone:'Não iniciado', notYetL1:'Ainda não atingiu o Nível 1', initialFull:'Nível 0 · Inicial', consolidateMsg:'cumprido fora de ordem — conclua os níveis anteriores para consolidar a maturidade',
-        aiBtn:'Sugestões da IA', aiLoading:'Gerando sugestões…', aiTitle:'Plano sugerido pela IA', aiErr:'Não foi possível gerar agora. Tente novamente.', aiRegen:'Refazer', aiHint:'Baseado nas respostas e no nível atual desta prática.',
+        aiBtn:'Sugestões da IA', aiLoading:'Gerando sugestões…', aiTitle:'Plano sugerido pela IA', aiErr:'Não foi possível gerar agora. Tente novamente.', aiRegen:'Refazer', aiHint:'Baseado nas respostas e no nível atual desta prática.', aiCollapse:'Recolher', aiExpand:'Expandir',
         currentLvl:'Atual', gapWord:'Lacuna', recsTitle:'Ações recomendadas', recsEmpty:'Prática no nível máximo — mantenha a melhoria contínua.', setTargetLabel:'Meta', infoYes:'Uma resposta plena significa que:', close:'Fechar', scExplain:'Cada prática recebe um score de 0 a 3 — a média dos seus dois streams. Quanto maior, mais madura e consistente é a prática. O radar mostra as 15 práticas (cor = função); as barras comparam cada prática com a meta, marcada pela linha ciano.',
         bands:['Inicial / Ad-hoc','Em desenvolvimento','Maduro','Otimizado'],
         kpiOverall:'Maturidade geral', kpiOnTarget:'Práticas na meta', kpiAvgGap:'Lacuna média', kpiLevel3:'Práticas Nível 3', kpiCoverage:'Cobertura',
@@ -713,7 +723,7 @@ class Component extends DCLogic {
         stDone:'Done', stPartial:'Partial', stNone:'Not started', focusNow:'Focus now', achievedWord:'achieved',
         targetReachedMsg:'Target reached — keep improving continuously.', noTargetMsg:'Set a target above to prioritize actions.', focusBannerMsg:'Focus for target', aboveTarget:'Above target',
         currentLevelLabel:'Current level', nextStepMsg:'Next level to reach:', maxMsg:'Top level reached — keep improving continuously.', quickWin:'Highest impact', completedLabel:'Achieved', initialWord:'Initial', nextWord:'Next', clickHint:'Click a level above to view its details.', viewingDone:'Done', viewingPartial:'Partial', viewingNone:'Not started', notYetL1:'Not yet at Level 1', initialFull:'Level 0 · Initial', consolidateMsg:'achieved out of order — complete earlier levels to consolidate maturity',
-        aiBtn:'AI suggestions', aiLoading:'Generating suggestions…', aiTitle:'AI-suggested plan', aiErr:'Could not generate right now. Please try again.', aiRegen:'Regenerate', aiHint:'Based on the answers and current level of this practice.',
+        aiBtn:'AI suggestions', aiLoading:'Generating suggestions…', aiTitle:'AI-suggested plan', aiErr:'Could not generate right now. Please try again.', aiRegen:'Regenerate', aiHint:'Based on the answers and current level of this practice.', aiCollapse:'Collapse', aiExpand:'Expand',
         currentLvl:'Current', gapWord:'Gap', recsTitle:'Recommended actions', recsEmpty:'Practice at maximum level — keep improving continuously.', setTargetLabel:'Target', infoYes:'A full "yes" means that:', close:'Close', scExplain:'Each practice is scored 0–3 — the average of its two streams. Higher means a more mature, consistent practice. The radar shows all 15 practices (color = function); the bars compare each practice to its target, marked by the cyan line.',
         bands:['Initial / Ad-hoc','Developing','Mature','Optimized'],
         kpiOverall:'Overall maturity', kpiOnTarget:'Practices on target', kpiAvgGap:'Average gap', kpiLevel3:'Level 3 practices', kpiCoverage:'Coverage',
@@ -802,6 +812,7 @@ class Component extends DCLogic {
   setNote(id,v){ const notes=Object.assign({},this.state.notes); notes[id]=v; this.set({notes}); }
   setTarget(code,v){ const targets=Object.assign({},this.state.targets); targets[code]=v; this.set({targets}); }
   setViewLevel(code,lv){ const v=Object.assign({},this.state.viewLevels); v[code]=lv; this.set({viewLevels:v}); }
+  toggleAi(code){ const ai=Object.assign({},this.state.ai); const cur=ai[code]; if(!cur||!cur.text) return; ai[code]=Object.assign({},cur,{collapsed:!cur.collapsed}); this.set({ai}); }
   setMeta(f,v){ const meta=Object.assign({},this.state.meta); meta[f]=v; this.set({meta}); }
 
   go(screen){ const p={screen}; if(screen!=='setup') p.started=true; this.set(p); window.scrollTo&&window.scrollTo(0,0); }
@@ -1081,6 +1092,7 @@ class Component extends DCLogic {
         achievedLabel: achieved===0?L.initialFull:(L.level+' '+achieved), currentColor: achieved===0?'var(--ok-warning)':pcol, notAchievedL1: achieved===0,
         rail, focus, hasFocus:true, completed, hasCompleted: completed.length>0, stateLabel, stateColor, metaLabel: tg>0?(L.level+' '+tg):'—',
         onAI:()=>this.askAI(x.p.code), aiLoading:!!aiState.loading, aiHasText:!!aiState.text, aiError:!!aiState.error, aiHtmlObj: {__html: aiState.text?this.mdToHtml(aiState.text):''},
+        onToggleAi:()=>this.toggleAi(x.p.code), aiCollapsed:!!aiState.collapsed, aiExpanded:!aiState.collapsed, aiChevDeg: aiState.collapsed?'0deg':'90deg', aiHeaderMb: aiState.collapsed?'margin-bottom:0;':'margin-bottom:10px;', aiToggleLabel: aiState.collapsed?L.aiExpand:L.aiCollapse,
         targetOptions:[1,2,3].map(v=>({ v, onClick:()=>this.setTarget(x.p.code,v), style:this.tgtBtnStyle(tg===v, 'var(--ok-cyan)') })) }; });
 
     // ===== KPIs (current) =====
